@@ -103,6 +103,22 @@ details[open] summary::after{content:"Hide"}
 .switch[aria-checked="true"] .knob::after{transform:translateX(18px)}
 @media (prefers-reduced-motion:reduce){.switch .knob,.switch .knob::after{transition:none}}
 .recipe .how{margin:0 0 12px}
+.ing-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.recipe .hint{font-size:.85rem;color:var(--muted);margin:0 0 6px}
+.recipe li.ing{position:relative;display:block;padding:0;overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.ing .row{position:relative;display:flex;align-items:center;gap:10px;padding:6px 0;background:var(--panel);transition:transform .14s ease-out}
+.ing.dragging .row{transition:none}
+.ing .nm{flex:1}
+.ing .amt{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ing .acts{display:flex;gap:2px}
+.ib{font:inherit;font-size:.95rem;color:var(--muted);background:none;border:0;border-radius:6px;width:34px;height:34px;cursor:pointer}
+.ib:hover{background:var(--bg);color:var(--ink)}
+.swipe-bg{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;padding:0 12px;font-weight:600;font-size:.9rem;color:#fff}
+.swipe-bg span{opacity:0}
+.ing.to-swap .swipe-bg{background:var(--f)} .ing.to-swap .sw{opacity:.75}
+.ing.to-remove .swipe-bg{background:var(--p)} .ing.to-remove .rm{opacity:.75}
+.ing.armed .swipe-bg span{opacity:1}
+@media (prefers-reduced-motion:reduce){.ing .row{transition:none}}
 .pantry-actions{display:flex;gap:18px;margin-top:14px;align-items:center;flex-wrap:wrap}
 .edit{margin-top:28px;padding-top:18px;border-top:1px solid var(--line)}
 .edit h3{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:0 0 4px}
@@ -662,12 +678,14 @@ function rawG(id,g){return Math.round(g/(ING[id].y||0.75)/5)*5;}
 function spoon(g,tb){const t=g/tb;if(t>=0.75){const r=Math.round(t*2)/2;return `about ${r} tbsp`;}
   const ts=Math.max(0.5,Math.round(t*3*2)/2);return `about ${ts} tsp`;}
 function joinAnd(a){return a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];}
-function helper(r){
+function helper(r,removed){
   const bySlot={};r.items.forEach((it,i)=>{if(r.grams[i]>0)bySlot[it.slot]={id:it.id,g:r.grams[i]};});
-  return {has:k=>!!bySlot[k],g:k=>bySlot[k]?bySlot[k].g:0,id:k=>bySlot[k]&&bySlot[k].id,uses:id=>Object.values(bySlot).some(v=>v.id===id),
-    raw:k=>{const v=bySlot[k];if(!v)return '';const I=ING[v.id];return I.rn?`about ${rawG(v.id,v.g)} g raw ${I.rn} (${v.g} g cooked)`:amount(v.id,v.g).short;},
-    t:k=>bySlot[k]?amount(bySlot[k].id,bySlot[k].g).short:'',
-    list:ks=>joinAnd(ks.filter(k=>bySlot[k]).map(k=>amount(bySlot[k].id,bySlot[k].g).short))};
+  const gone=k=>{if(!bySlot[k]&&removed&&removed.has(k))H.miss=true;};
+  const H={miss:false,has:k=>!!bySlot[k],g:k=>bySlot[k]?bySlot[k].g:0,id:k=>bySlot[k]&&bySlot[k].id,uses:id=>Object.values(bySlot).some(v=>v.id===id),
+    raw:k=>{gone(k);const v=bySlot[k];if(!v)return '';const I=ING[v.id];return I.rn?`about ${rawG(v.id,v.g)} g raw ${I.rn} (${v.g} g cooked)`:amount(v.id,v.g).short;},
+    t:k=>{gone(k);return bySlot[k]?amount(bySlot[k].id,bySlot[k].g).short:'';},
+    list:ks=>{const got=ks.filter(k=>bySlot[k]);if(!got.length)ks.forEach(gone);return joinAnd(got.map(k=>amount(bySlot[k].id,bySlot[k].g).short));}};
+  return H;
 }
 
 /* ---------- State ---------- */
@@ -757,23 +775,87 @@ function render(){
   if(!ranked.length){const lab=TYPES.find(x=>x[0]===state.type)[1];
     out.innerHTML=`<div class="empty">Nothing in the ${lab==='Any'?'recipe list':lab.toLowerCase()+' recipes'} can be made from your pantry. Open Pantry below and add a protein and a base like milk, oats or a grain.</div>`;return;}
   const pages=Math.ceil(ranked.length/2),p=page%pages,show=ranked.slice(p*2,p*2+2);
-  out.innerHTML=show.map(r=>card(r,t)).join('');
+  cards=show.map(r=>({base:r,cur:r,removed:new Set(),tried:{},msg:''}));
+  out.innerHTML=cards.map((c,k)=>card(c,k,t)).join('');
 }
-function card(r,t){
-  const h=helper(r),[P,C,F,FB]=r.tot;
+let cards=[];
+function card(cd,k,t){
+  const r=cd.cur,h=helper(r,cd.removed),[P,C,F,FB]=r.tot;
   const rows=MK.map((m,i)=>{const got=r.tot[i],tg=t[m],mx=Math.max(tg,got,1)*1.2,d=Math.round(got-tg);
     const close=Math.abs(got-tg)<=Math.max(2,0.1*tg);
     return `<span class="lab" style="--m:var(--${m})">${MNAME[m]}</span>
       <span class="track" style="--m:var(--${m})" aria-hidden="true"><span class="bar" style="width:${(got/mx*100).toFixed(1)}%"></span><span class="tick" style="left:${(tg/mx*100).toFixed(1)}%"></span></span>
       <span class="val">${Math.round(got)} g <span class="off">${close?'on target':(d>0?'+':'')+d+' g'}</span></span>`;}).join('');
-  const ing=r.items.map((it,i)=>r.grams[i]>0?`<li><span>${ING[it.id].n}</span><span class="amt">${amount(it.id,r.grams[i]).full}</span></li>`:'').join('');
-  const steps=state.simple?'':r.tp.steps.map(f=>f(h)).filter(Boolean).map(s=>`<li>${s}</li>`).join('');
+  const ing=r.items.map((it,i)=>r.grams[i]>0?`<li class="ing" data-card="${k}" data-idx="${i}">
+      <div class="swipe-bg" aria-hidden="true"><span class="sw">Swap</span><span class="rm">Remove</span></div>
+      <div class="row"><span class="nm">${ING[it.id].n}</span><span class="amt">${amount(it.id,r.grams[i]).full}</span>
+      <span class="acts"><button type="button" class="ib" data-act="swap" aria-label="Swap ${ING[it.id].n} for something similar">⇄</button><button type="button" class="ib" data-act="remove" aria-label="Remove ${ING[it.id].n}">✕</button></span></div></li>`:'').join('');
+  const steps=state.simple?'':r.tp.steps.map(f=>{h.miss=false;const s=f(h);return h.miss?null:s;}).filter(Boolean).map(s=>`<li>${s}</li>`).join('');
+  const edited=cd.cur!==cd.base;
   const kinds=r.tp.types.filter(k=>k!=='eggrice').map(k=>TYPE_LABEL[k]).join(' or ');
-  return `<article class="recipe"><h3>${typeof r.tp.name==='function'?r.tp.name(h):r.tp.name}</h3>
+  return `<article class="recipe" id="card-${k}"><h3>${typeof r.tp.name==='function'?r.tp.name(h):r.tp.name}</h3>
     <p class="kind">${kinds}, about ${kcal(P,C,F,FB)} kcal</p>
     <div class="fit" role="img" aria-label="${MK.map((m,i)=>`${MNAME[m]} ${Math.round(r.tot[i])} of ${t[m]} grams`).join(', ')}">${rows}</div>
-    <h4>Ingredients</h4><ul>${ing}</ul>${state.simple?`<h4>How</h4><p class="how">${r.tp.quick(h)}</p>`:`<h4>Steps</h4><ol>${steps}</ol>`}</article>`;
+    <div class="ing-head"><h4>Ingredients</h4>${edited?`<button type="button" class="linkbtn" data-act="reset" data-card="${k}">Undo changes</button>`:''}</div>
+    <p class="hint">${cd.msg||'Swipe an ingredient left to remove it, right to swap it.'}</p>
+    <ul>${ing}</ul>${state.simple?`<h4>How</h4><p class="how">${r.tp.quick(h)}</p>`:`<h4>Steps</h4><ol>${steps}</ol>`}</article>`;
 }
+/* ---------- Swipe to remove or swap ---------- */
+function redrawCard(k){const el=document.getElementById('card-'+k);if(el)el.outerHTML=card(cards[k],k,state.t);}
+// Edits work on exactly what's on the card: hidden zero-gram options stay out, and visible ones keep a small floor.
+const keep=(r,skip)=>r.items.map((x,j)=>({...x,g:r.grams[j],j})).filter(x=>x.g>0&&x.j!==skip).map(({g,j,...x})=>({...x,lo:x.lo>0?x.lo:Math.min(x.hi,5)}));
+function shortNote(r){const t=MK.map(m=>state.t[m]);
+  const off=MK.map((m,i)=>({m,d:r.tot[i]-t[i],tol:Math.max(3,0.15*t[i])})).filter(x=>Math.abs(x.d)>x.tol);
+  if(!off.length)return '';const s=joinAnd(off.map(x=>MNAME[x.m].toLowerCase()));return ` ${s[0].toUpperCase()+s.slice(1)} ${off.length>1?'are':'is'} now off target.`;}
+function removeItem(k,i){
+  const cd=cards[k],r=cd.cur,it=r.items[i];
+  if(r.items.filter((x,j)=>j!==i&&r.grams[j]>0).length===0){cd.msg="That's the last ingredient, so it has to stay.";redrawCard(k);return;}
+  const items=keep(r,i);
+  cd.removed.add(it.slot);
+  cd.cur={tp:r.tp,...fit(items,MK.map(m=>state.t[m]))};
+  cd.msg=`Removed the ${ING[it.id].s} and rebalanced the rest.${shortNote(cd.cur)}`;
+  redrawCard(k);
+}
+function swapItem(k,i){
+  const cd=cards[k],r=cd.cur,it=r.items[i],t=MK.map(m=>state.t[m]);
+  const sl=r.tp.slots.find(s=>s.k===it.slot),used=new Set(r.items.map(x=>x.id));
+  const tried=cd.tried[it.slot]||(cd.tried[it.slot]=new Set([it.id]));
+  const opts=expandSlot(sl,new Set(state.pantry)).filter(o=>!used.has(o.id));
+  if(!opts.length){cd.msg=`Nothing else in your pantry can stand in for the ${ING[it.id].s}.`;redrawCard(k);return;}
+  let fresh=opts.filter(o=>!tried.has(o.id));
+  if(!fresh.length){tried.clear();tried.add(it.id);fresh=opts;}
+  // Keep a lower bound when the original was required, so the swap actually shows up in the recipe.
+  const base=keep(r,-1),pos=base.findIndex(x=>x.slot===it.slot&&x.id===it.id);
+  const tries=fresh.map(o=>{const items=base.map((x,j)=>j===pos?{...o,lo:o.lo>0?o.lo:Math.min(o.hi,5)}:{...x});return fit(items,t);})
+    .sort((a,b)=>a.err-b.err);
+  const best=tries[0],nu=best.items[pos];tried.add(nu.id);
+  cd.cur={tp:r.tp,...best};
+  cd.msg=`Swapped the ${ING[it.id].s} for ${ING[nu.id].s}.${shortNote(cd.cur)} Swipe again for another option.`;
+  redrawCard(k);
+}
+const resultsEl=document.getElementById('results');
+resultsEl.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;
+  if(b.dataset.act==='reset'){const k=+b.dataset.card,cd=cards[k];cd.cur=cd.base;cd.removed.clear();cd.tried={};cd.msg='';redrawCard(k);return;}
+  const li=b.closest('.ing');if(!li)return;const k=+li.dataset.card,i=+li.dataset.idx;
+  b.dataset.act==='remove'?removeItem(k,i):swapItem(k,i);});
+let drag=null;
+resultsEl.addEventListener('pointerdown',e=>{const li=e.target.closest('.ing');if(!li||e.target.closest('button'))return;
+  drag={li,row:li.querySelector('.row'),x:e.clientX,y:e.clientY,dx:0,on:false,id:e.pointerId};});
+resultsEl.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(!drag.on){if(Math.abs(dy)>12&&Math.abs(dy)>Math.abs(dx)){drag=null;return;}
+    if(Math.abs(dx)<12)return;drag.on=true;drag.li.setPointerCapture(e.pointerId);drag.li.classList.add('dragging');}
+  drag.dx=dx;drag.row.style.transform=`translateX(${dx}px)`;
+  drag.li.classList.toggle('to-swap',dx>0);drag.li.classList.toggle('to-remove',dx<0);
+  drag.li.classList.toggle('armed',Math.abs(dx)>80);});
+function endDrag(){if(!drag)return;const {li,row,dx,on}=drag;drag=null;if(!on)return;
+  li.classList.remove('dragging');const k=+li.dataset.card,i=+li.dataset.idx;
+  if(dx<-80){row.style.transform='translateX(-110%)';setTimeout(()=>removeItem(k,i),140);}
+  else if(dx>80){row.style.transform='';swapItem(k,i);}
+  else{row.style.transform='';li.classList.remove('to-swap','to-remove','armed');}}
+resultsEl.addEventListener('pointerup',endDrag);
+resultsEl.addEventListener('pointercancel',()=>{if(drag){drag.row.style.transform='';drag.li.classList.remove('dragging','to-swap','to-remove','armed');drag=null;}});
+
 let timer=null;
 function changed(resetPage){showKcal();save();if(resetPage)page=0;clearTimeout(timer);timer=setTimeout(()=>{compute();render();},220);}
 document.getElementById('more').addEventListener('click',()=>{page++;render();document.getElementById('results').scrollIntoView({block:'nearest'});});
