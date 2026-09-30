@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Snack Scope</title>
+<meta name="description" content="Dial in protein, carbs, fat and fiber, and get recipes from your pantry.">
+<meta name="theme-color" content="#EDF1EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F201C" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Snack Scope">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF1EE; --ink:#14322C; --muted:#566B64; --line:#C5D2CB; --panel:#F8FAF8;
+  --p:#B03060; --c:#A87408; --f:#2B6FA0; --fb:#3B7A2D;
+  --display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body:"Public Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F201C; --ink:#E3EDE8; --muted:#9BB0A8; --line:#2B423B; --panel:#152924;
+    --p:#E36C95; --c:#E2B040; --f:#63A6D8; --fb:#80BC6A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F201C; --ink:#E3EDE8; --muted:#9BB0A8; --line:#2B423B; --panel:#152924;
+  --p:#E36C95; --c:#E2B040; --f:#63A6D8; --fb:#80BC6A;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+main{max-width:640px;margin:0 auto;padding:28px 20px 64px}
+h1{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1;letter-spacing:-.02em;margin:0 0 8px}
+.lede{color:var(--muted);margin:0 0 28px;max-width:34em}
+h2{font-family:var(--display);font-weight:600;font-size:1.25rem;margin:0 0 12px}
+section{margin-bottom:36px}
+
+/* Dials */
+.dial{display:grid;grid-template-columns:1fr auto;align-items:end;gap:2px 12px;padding:14px 0 10px;border-bottom:1px solid var(--line)}
+.dial:first-of-type{border-top:1px solid var(--line)}
+.dial label{font-weight:600;color:var(--m)}
+.dial .num{display:flex;align-items:baseline;gap:4px}
+.dial input[type=number]{width:3.4ch;font-family:var(--display);font-weight:800;font-size:2.4rem;line-height:1;color:var(--m);background:transparent;border:0;text-align:right;padding:0;-moz-appearance:textfield}
+.dial input[type=number]::-webkit-inner-spin-button,.dial input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.dial .unit{color:var(--muted);font-size:.95rem}
+.dial input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--m);margin:6px 0 0;height:28px}
+.kcal{margin:12px 0 0;color:var(--muted)}
+.kcal strong{color:var(--ink);font-weight:600}
+.note{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+
+/* Type toggle */
+.types{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:.95rem;color:var(--ink);background:transparent;border:1.5px solid var(--line);border-radius:999px;padding:7px 15px;cursor:pointer;min-height:40px}
+.chip[aria-checked="true"],.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip[aria-pressed="false"]{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+:focus-visible{outline:3px solid var(--f);outline-offset:2px}
+
+/* Results */
+.results-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.linkbtn{font:inherit;font-weight:600;color:var(--f);background:none;border:0;padding:6px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.recipe{background:var(--panel);border-left:4px solid var(--ink);padding:18px 18px 8px;margin:14px 0 18px}
+.recipe h3{font-family:var(--display);font-weight:800;font-size:1.5rem;line-height:1.1;margin:0}
+.recipe .kind{color:var(--muted);font-size:.9rem;margin:4px 0 14px}
+.fit{display:grid;grid-template-columns:4.2em 1fr auto;gap:6px 10px;align-items:center;margin-bottom:16px;font-size:.9rem}
+.fit .lab{color:var(--m);font-weight:600}
+.track{position:relative;height:10px;background:var(--bg);border-radius:5px;overflow:visible}
+.track .bar{position:absolute;left:0;top:0;bottom:0;background:var(--m);border-radius:5px}
+.track .tick{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.fit .val{font-variant-numeric:tabular-nums;white-space:nowrap}
+.fit .off{color:var(--muted)}
+.recipe h4{font-family:var(--display);font-weight:600;font-size:1rem;margin:12px 0 6px}
+.recipe ul{list-style:none;padding:0;margin:0}
+.recipe li{padding:5px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}
+.recipe li:last-child{border-bottom:0}
+.recipe li .amt{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.recipe ol{padding-left:1.3em;margin:0 0 10px}
+.recipe ol li{display:list-item;border:0;padding:3px 0}
+.empty{background:var(--panel);padding:18px;border-left:4px solid var(--line)}
+
+/* Pantry */
+details summary{cursor:pointer;font-family:var(--display);font-weight:600;font-size:1.25rem;list-style:none;display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"Show";font-family:var(--body);font-size:.95rem;font-weight:600;color:var(--f)}
+details[open] summary::after{content:"Hide"}
+.count{font-family:var(--body);font-weight:400;font-size:.95rem;color:var(--muted);margin-left:auto}
+.group{margin-top:18px}
+.group h3{font-size:.95rem;font-weight:600;color:var(--muted);margin:0 0 8px}
+.simple-row{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.simple-row .note{margin:0}
+.switch{font:inherit;font-weight:600;color:var(--ink);background:none;border:0;padding:6px 0;display:inline-flex;align-items:center;gap:10px;cursor:pointer;min-height:40px}
+.switch .knob{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.switch .knob::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--panel);transition:transform .15s}
+.switch[aria-checked="true"] .knob{background:var(--ink)}
+.switch[aria-checked="true"] .knob::after{transform:translateX(18px)}
+@media (prefers-reduced-motion:reduce){.switch .knob,.switch .knob::after{transition:none}}
+.recipe .how{margin:0 0 12px}
+.pantry-actions{display:flex;gap:18px;margin-top:14px;align-items:center;flex-wrap:wrap}
+.edit{margin-top:28px;padding-top:18px;border-top:1px solid var(--line)}
+.edit h3{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:0 0 4px}
+.edit label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted)}
+.edit label.full{margin:12px 0}
+.edit select,.edit input{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1.5px solid var(--line);border-radius:6px;padding:8px;min-height:42px;width:100%}
+.egrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px}
+@media (prefers-reduced-motion:no-preference){.recipe{animation:in .25s ease-out}@keyframes in{from{opacity:0;transform:translateY(4px)}}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Snack Scope</h1>
+  <p class="lede">Dial in the macros and fiber you want from this meal. Recipes rebuild from your pantry as you go, with amounts solved to hit the numbers.</p>
+
+  <section aria-labelledby="h-targets">
+    <h2 id="h-targets">Targets</h2>
+    <div id="dials"></div>
+    <p class="kcal" id="kcal"></p>
+    <p class="note">Carbs are total carbs, fiber included, the way US labels and FatSecret count them. Meat and fish amounts are cooked weight.</p>
+  </section>
+
+  <section aria-labelledby="h-type">
+    <h2 id="h-type">What kind</h2>
+    <div class="types" role="radiogroup" aria-labelledby="h-type" id="types"></div>
+    <div class="simple-row">
+      <button type="button" class="switch" role="switch" id="simple" aria-checked="false"><span class="knob" aria-hidden="true"></span>Simple</button>
+      <span class="note">Skips sauces and seasonings and gives one-line directions. Just the macros.</span>
+    </div>
+  </section>
+
+  <section aria-live="polite">
+    <div class="results-head">
+      <h2>Recipes</h2>
+      <button class="linkbtn" id="more" type="button">Show different recipes</button>
+    </div>
+    <div id="results"></div>
+  </section>
+
+  <section>
+    <details id="pantryBox">
+      <summary>Pantry <span class="count" id="pcount"></span></summary>
+      <div id="pantry"></div>
+      <div class="pantry-actions">
+        <button class="linkbtn" id="pAll" type="button">Select all</button>
+        <button class="linkbtn" id="pNone" type="button">Clear all</button>
+        <button class="linkbtn" id="pReset" type="button">Reset to my usual</button>
+      </div>
+      <div class="edit">
+        <h3>Match a package label</h3>
+        <p class="note">Brand items marked with * use estimated numbers. Type in what the label says for one serving.</p>
+        <label class="full">Ingredient <select id="eSel"></select></label>
+        <div class="egrid">
+          <label>Serving (g)<input id="eSrv" type="number" inputmode="decimal" min="1"></label>
+          <label>Protein<input id="eP" type="number" inputmode="decimal" min="0" step="0.1"></label>
+          <label>Carbs<input id="eC" type="number" inputmode="decimal" min="0" step="0.1"></label>
+          <label>Fat<input id="eF" type="number" inputmode="decimal" min="0" step="0.1"></label>
+          <label>Fiber<input id="eFb" type="number" inputmode="decimal" min="0" step="0.1"></label>
+        </div>
+        <div class="pantry-actions"><button class="chip" id="eSave" type="button">Save label values</button>
+          <button class="linkbtn" id="eReset" type="button">Use default values</button><span class="note" id="eMsg" role="status"></span></div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+/* ---------- Ingredient data: per 100 g (protein, total carbs, fat, fiber) ----------
+   Meat and fish are cooked weight. off:1 = not in the default pantry. est:1 = brand estimate, check the label.
+   rn = raw name, y = cooked/raw yield, used to show a raw weight to buy or prep. */
+const GROUPS=['Protein','Grains & starch','Beans & legumes','Fruit','Vegetables & greens','Nuts, seeds & fats','Dairy & liquids','Extras','Sauces & seasonings'];
+const ING={
+ chicken:{n:'Chicken breast',s:'cooked chicken breast',g:0,p:31,c:0,f:3.6,fb:0,rn:'chicken breast'},
+ chickenthigh:{n:'Chicken thighs',s:'cooked chicken thigh',g:0,p:25,c:0,f:8.5,fb:0,rn:'boneless chicken thighs'},
+ roastchicken:{n:'Roast or rotisserie chicken, no skin',s:'roast chicken, skin off',g:0,p:27,c:0,f:7.4,fb:0},
+ turkey:{n:'Ground turkey 93%',s:'cooked lean ground turkey',g:0,p:27,c:0,f:10,fb:0,rn:'93% lean ground turkey'},
+ turkeysausage:{n:'Turkey sausage roll (Jennie-O)',s:'cooked turkey sausage',g:0,p:21,c:1,f:13,fb:0,est:1,rn:'turkey sausage'},
+ smokedsausage:{n:'Turkey smoked sausage (Eckrich)',s:'turkey smoked sausage',g:0,p:12.5,c:5.4,f:8.9,fb:0,est:1},
+ ham:{n:'Black Forest ham',s:'Black Forest ham',g:0,p:18,c:1.8,f:2.7,fb:0},
+ bacon:{n:'Low-sodium bacon',s:'cooked bacon',g:0,p:37,c:1.4,f:42,fb:0},
+ porktenderloin:{n:'Pork tenderloin',s:'cooked pork tenderloin',g:0,p:26,c:0,f:3.5,fb:0,rn:'pork tenderloin'},
+ porkchop:{n:'Thin-cut pork chops',s:'cooked pork chop',g:0,p:28,c:0,f:7,fb:0,rn:'thin-cut pork chop'},
+ beef:{n:'80/20 beef patties',s:'cooked 80/20 beef',g:0,p:25.6,c:0,f:17.1,fb:0,rn:'80/20 ground beef'},
+ lamb:{n:'Ground lamb',s:'cooked ground lamb',g:0,p:24.5,c:0,f:19.7,fb:0,rn:'ground lamb'},
+ salmonfillet:{n:'Atlantic salmon',s:'cooked salmon',g:0,p:22.1,c:0,f:12.4,fb:0,rn:'salmon fillet',y:0.8},
+ pinksalmon:{n:'Wild pink salmon',s:'cooked wild pink salmon',g:0,p:24.6,c:0,f:4.4,fb:0,rn:'wild pink salmon fillet',y:0.8},
+ salmon:{n:'Smoked salmon',s:'smoked salmon',g:0,p:18.3,c:0,f:4.3,fb:0},
+ kipper:{n:'Kippers or tinned salmon in olive oil',s:'kippers or tinned salmon, drained',g:0,p:21,c:0,f:12,fb:0,est:1},
+ tuna:{n:'Chunk light tuna in water',s:'drained tuna',g:0,p:26,c:0,f:1,fb:0},
+ tilapia:{n:'Tilapia',s:'cooked tilapia',g:0,p:26.2,c:0,f:2.7,fb:0,rn:'tilapia',y:0.8},
+ catfish:{n:'Catfish',s:'cooked catfish',g:0,p:18.4,c:0,f:8,fb:0,rn:'catfish',y:0.8},
+ flounder:{n:'Flounder',s:'cooked flounder',g:0,p:15.2,c:0,f:2.4,fb:0,rn:'flounder',y:0.8},
+ eggs:{n:'Eggs',s:'eggs',g:0,p:12.6,c:0.7,f:9.5,fb:0,u:[50,'egg','eggs']},
+ whites:{n:'Liquid egg whites',s:'liquid egg whites',g:0,p:10.9,c:0.7,f:0.2,fb:0,liq:1},
+ whey:{n:'Chocolate whey protein',s:'chocolate whey',g:0,p:75,c:9.4,f:4.7,fb:1,est:1},
+ shrimp:{n:'Shrimp',s:'cooked shrimp',g:0,p:24,c:0.2,f:0.3,fb:0,off:1},
+ tofu:{n:'Tofu, firm',s:'firm tofu',g:0,p:17.3,c:2.8,f:8.7,fb:2.3,off:1},
+
+ oats:{n:'Rolled oats (fine raw)',s:'rolled oats',g:1,p:13.2,c:67.7,f:6.5,fb:10.1},
+ rice:{n:'White rice, cooked',s:'cooked white rice',g:1,p:2.7,c:28.2,f:0.3,fb:0.4},
+ brownrice:{n:'Brown rice, cooked',s:'cooked brown rice',g:1,p:2.6,c:23,f:0.9,fb:1.8},
+ potato:{n:'Potatoes, baked',s:'baked potato',g:1,p:2.5,c:21,f:0.1,fb:2.2},
+ squash:{n:'Butternut or acorn squash',s:'roasted winter squash',g:1,p:1,c:12,f:0.1,fb:3.5},
+ corn:{n:'Sweet corn',s:'corn kernels',g:1,p:3.4,c:21,f:1.5,fb:2.4},
+ bread:{n:"Dave's Killer Bread, thin-sliced",s:"Dave's Killer Bread",g:1,p:10.7,c:42.9,f:3.6,fb:10.7,est:1,u:[28,"slice Dave's Killer Bread","slices Dave's Killer Bread"]},
+ carbsmart:{n:"Aunt Millie's Carb Smart bread",s:'Carb Smart bread',g:1,p:13.6,c:36,f:4.5,fb:32,est:1,u:[22,'slice Carb Smart bread','slices Carb Smart bread']},
+ tortilla:{n:'Olé high-fiber wraps',s:'Olé high-fiber wrap',g:1,p:10,c:24,f:5,fb:17,est:1,u:[71,'Olé high-fiber wrap','Olé high-fiber wraps']},
+ popcorn:{n:'Popcorn, air-popped',s:'air-popped popcorn',g:1,p:12.9,c:77.8,f:4.5,fb:14.5},
+ sweetpot:{n:'Sweet potato, baked',s:'baked sweet potato',g:1,p:2,c:20.7,f:0.2,fb:3.3,off:1},
+ quinoa:{n:'Quinoa, cooked',s:'cooked quinoa',g:1,p:4.4,c:21.3,f:1.9,fb:2.8,off:1},
+ pasta:{n:'Whole-wheat pasta, cooked',s:'cooked whole-wheat pasta',g:1,p:6,c:28,f:1.2,fb:4,off:1},
+ ricecake:{n:'Brown rice cakes',s:'rice cakes',g:1,p:8.2,c:81.5,f:2.8,fb:4.2,u:[9,'rice cake','rice cakes'],off:1},
+
+ blackbeans:{n:'Black beans',s:'black beans',g:2,p:8.9,c:23.7,f:0.5,fb:8.7},
+ kidney:{n:'Dark red kidney beans',s:'kidney beans',g:2,p:8.7,c:22.8,f:0.5,fb:6.4},
+ whitebeans:{n:'White beans (cannellini, great northern, butter)',s:'white beans',g:2,p:7.5,c:20,f:0.4,fb:6.5},
+ chickpeas:{n:'Chickpeas',s:'chickpeas',g:2,p:8.9,c:27.4,f:2.6,fb:7.6,off:1},
+ lentils:{n:'Lentils, cooked',s:'cooked lentils',g:2,p:9,c:20.1,f:0.4,fb:7.9,off:1},
+ edamame:{n:'Edamame, shelled',s:'shelled edamame',g:2,p:11.9,c:8.9,f:5.2,fb:5.2,off:1},
+ hummus:{n:'Hummus',s:'hummus',g:2,p:7.9,c:14.3,f:9.6,fb:6,off:1},
+
+ banana:{n:'Banana',s:'banana',g:3,p:1.1,c:22.8,f:0.3,fb:2.6},
+ apple:{n:'Apple',s:'apple',g:3,p:0.3,c:13.8,f:0.2,fb:2.4},
+ clementine:{n:'Clementines',s:'clementines',g:3,p:0.9,c:12,f:0.2,fb:1.7,u:[74,'clementine','clementines']},
+ berries:{n:'Frozen cherry-berry blend',s:'frozen cherry-berry blend',g:3,p:0.8,c:12,f:0.3,fb:2.5},
+ strawberries:{n:'Strawberries',s:'strawberries',g:3,p:0.7,c:7.7,f:0.3,fb:2},
+ cherries:{n:'Sweet cherries',s:'pitted cherries',g:3,p:1.1,c:16,f:0.2,fb:2.1},
+ peach:{n:'Peach or nectarine',s:'sliced peach or nectarine',g:3,p:1,c:10,f:0.3,fb:1.6},
+ cantaloupe:{n:'Cantaloupe',s:'cantaloupe',g:3,p:0.8,c:8.2,f:0.2,fb:0.9},
+ blueberries:{n:'Blueberries',s:'blueberries',g:3,p:0.7,c:14.5,f:0.3,fb:2.4,off:1},
+ raspberries:{n:'Raspberries',s:'raspberries',g:3,p:1.2,c:11.9,f:0.7,fb:6.5,off:1},
+
+ spinach:{n:'Spinach',s:'spinach',g:4,p:2.9,c:3.6,f:0.4,fb:2.2},
+ chard:{n:'Swiss chard',s:'Swiss chard',g:4,p:1.8,c:3.7,f:0.2,fb:1.6},
+ collards:{n:'Collard or mustard greens',s:'collard greens',g:4,p:3,c:5.4,f:0.6,fb:4},
+ lettuce:{n:'Lettuce',s:'chopped lettuce',g:4,p:1.2,c:3.3,f:0.3,fb:2.1},
+ broccoli:{n:'Broccoli',s:'broccoli',g:4,p:2.8,c:6.6,f:0.4,fb:2.6},
+ pepper:{n:'Bell or poblano pepper',s:'sliced peppers',g:4,p:1,c:6,f:0.3,fb:2.1},
+ mushrooms:{n:'Mini bella mushrooms',s:'sliced mushrooms',g:4,p:3.1,c:3.3,f:0.3,fb:1},
+ zucchini:{n:'Zucchini',s:'zucchini',g:4,p:1.2,c:3.1,f:0.3,fb:1},
+ eggplant:{n:'Eggplant',s:'eggplant',g:4,p:1,c:5.9,f:0.2,fb:3},
+ onion:{n:'Onion',s:'onion',g:4,p:1.1,c:9.3,f:0.1,fb:1.7},
+ carrots:{n:'Carrots',s:'carrots',g:4,p:0.9,c:9.6,f:0.2,fb:2.8},
+ cucumber:{n:'Cucumber',s:'cucumber',g:4,p:0.7,c:3.6,f:0.1,fb:0.5},
+ tomato:{n:'Tomatoes',s:'tomato',g:4,p:0.9,c:3.9,f:0.2,fb:1.2},
+ dicedtomato:{n:'Fire-roasted diced tomatoes',s:'fire-roasted diced tomatoes',g:4,p:0.8,c:4,f:0.1,fb:1.2},
+ scallions:{n:'Green onions',s:'sliced green onions',g:4,p:1.8,c:7.3,f:0.2,fb:2.6},
+ peas:{n:'Peas, frozen',s:'frozen peas',g:4,p:5.2,c:14.3,f:0.2,fb:4.5,off:1},
+
+ avocado:{n:'Avocado',s:'avocado',g:5,p:2,c:8.5,f:14.7,fb:6.7},
+ pb:{n:'Natural crunchy peanut butter',s:'peanut butter',g:5,p:22.5,c:22,f:51,fb:5,tb:16},
+ almonds:{n:'Almonds',s:'almonds',g:5,p:21.2,c:21.6,f:49.9,fb:12.5},
+ oil:{n:'Olive oil',s:'olive oil',g:5,p:0,c:0,f:100,fb:0,tb:13.5},
+ plantbutter:{n:'Plant butter (Country Crock)',s:'plant butter',g:5,p:0,c:0,f:79,fb:0,tb:14,est:1},
+ walnuts:{n:'Walnuts',s:'walnuts',g:5,p:15.2,c:13.7,f:65.2,fb:6.7,off:1},
+ pepitas:{n:'Pumpkin seeds',s:'pumpkin seeds',g:5,p:30.2,c:10.7,f:49,fb:6,off:1},
+ chia:{n:'Chia seeds',s:'chia seeds',g:5,p:16.5,c:42.1,f:30.7,fb:34.4,off:1},
+ flax:{n:'Ground flaxseed',s:'ground flaxseed',g:5,p:18.3,c:28.9,f:42.2,fb:27.3,off:1},
+
+ water:{n:'Water',s:'water',g:6,p:0,c:0,f:0,fb:0,liq:1},
+ stringcheese:{n:'Light string cheese',s:'light string cheese',g:6,p:25,c:3.6,f:8.9,fb:0,est:1,u:[28,'light string cheese','light string cheeses']},
+ cheddar:{n:'Reduced-fat sharp cheddar',s:'reduced-fat cheddar',g:6,p:28.6,c:3.6,f:17.9,fb:0,est:1},
+ provolone:{n:'Reduced-fat provolone',s:'reduced-fat provolone',g:6,p:25,c:3,f:17,fb:0,est:1},
+ almondyog:{n:'Almond milk yogurt alternative',s:'almond milk yogurt alternative',g:6,p:5.3,c:4.7,f:8.7,fb:2,est:1,off:1},
+ soyyog:{n:'Plain soy yogurt alternative',s:'plain soy yogurt alternative',g:6,p:4,c:6,f:3,fb:1,est:1,off:1},
+ soymilk:{n:'Silk unsweetened soy milk',s:'unsweetened soy milk',g:6,p:2.9,c:1.3,f:1.7,fb:0.4,liq:1,est:1},
+ milk:{n:'Skim milk',s:'skim milk',g:6,p:3.4,c:5,f:0.1,fb:0,liq:1,off:1},
+ almondmilk:{n:'Almond milk, unsweetened',s:'unsweetened almond milk',g:6,p:0.5,c:0.6,f:1.1,fb:0.3,liq:1,off:1},
+ cottage:{n:'Cottage cheese 2%',s:'2% cottage cheese',g:6,p:11,c:4,f:2.3,fb:0,off:1},
+ feta:{n:'Feta',s:'feta',g:6,p:14.2,c:3.9,f:21.3,fb:0,off:1},
+ parm:{n:'Parmesan',s:'grated parmesan',g:6,p:35.8,c:3.2,f:25,fb:0,off:1},
+
+ cocoa:{n:'Cocoa powder, unsweetened',s:'unsweetened cocoa',g:7,p:19.6,c:57.9,f:13.7,fb:37,off:1},
+ darkchoc:{n:'Dark chocolate 70–85%',s:'dark chocolate',g:7,p:7.8,c:45.9,f:42.6,fb:10.9,off:1},
+ honey:{n:'Honey',s:'honey',g:7,p:0.3,c:82.4,f:0,fb:0.2,tb:21,off:1},
+ psyllium:{n:'Psyllium husk',s:'psyllium husk',g:7,p:2,c:85,f:0.6,fb:78,off:1},
+
+ soy:{n:'Soy sauce',s:'soy sauce',g:8,p:8.1,c:4.9,f:0.6,fb:0.8,tb:16},
+ sriracha:{n:'Sriracha',s:'sriracha',g:8,p:1.9,c:19.2,f:0.9,fb:2.2,tb:17},
+ hotsauce:{n:'Hot sauce',s:'hot sauce',g:8,p:0.5,c:1.8,f:0.4,fb:0.3,tb:15},
+ chilicrisp:{n:'Chili crisp',s:'chili crisp',g:8,p:4,c:10,f:55,fb:3,tb:13,est:1},
+ salsaverde:{n:'Salsa verde',s:'salsa verde',g:8,p:0.5,c:6.7,f:0.2,fb:1,tb:15},
+ marinara:{n:'Marinara sauce',s:'marinara',g:8,p:1.5,c:12,f:1.5,fb:1.8},
+ sesameoil:{n:'Toasted sesame oil',s:'toasted sesame oil',g:8,p:0,c:0,f:100,fb:0,tb:13.6,off:1},
+};
+const DEFAULT_ING=JSON.parse(JSON.stringify(ING));
+const MK=['p','c','f','fb'], MNAME={p:'Protein',c:'Carbs',f:'Fat',fb:'Fiber'};
+const vec=id=>MK.map(m=>ING[id][m]);
+
+/* ---------- Recipe templates ---------- */
+// S(key, options, minG, maxG, defaultG, optional). An option can be 'id' or ['id',min,max,default]. Meat/fish amounts are cooked weight.
+const S=(k,o,lo,hi,d,opt=false)=>({k,o,lo,hi,d,opt});
+const LIQ=['soymilk','water','almondmilk','milk'];
+const FRUIT=['banana','berries','strawberries','cherries','apple','peach','clementine','blueberries','raspberries'];
+const COOKGREENS=['spinach','chard','collards'];
+const FISH=['salmonfillet','pinksalmon','tilapia','catfish','flounder'];
+const HEAT=[['sriracha',10,10,10],['hotsauce',10,10,10],['chilicrisp',8,8,8]];
+const T=[
+ {name:'Protein smoothie',types:['shake'],slots:[
+   S('liq',LIQ,200,450,300),
+   S('pro',[['whey',15,60,30],['soyyog',100,300,150],['almondyog',100,250,150],['cottage',80,250,150],['tofu',80,250,150]]),
+   S('fruit',['banana','berries','strawberries','cherries','blueberries','raspberries'],0,200,100,true),
+   S('fat',['pb','almonds','flax','chia'],0,32,15,true),
+   S('fib',['chia','flax',['psyllium',0,10,5],'oats'],0,40,10,true),
+   S('greens',['spinach'],0,60,30,true)],
+  steps:[r=>`Pour ${r.t('liq')} into the blender.`,
+   r=>`Add ${r.list(['pro','fruit','fat','fib','greens'])}.`,
+   r=>['chia','flax','psyllium'].some(x=>r.uses(x))?'Blend 60 seconds, then let it sit 2–3 minutes to thicken.':'Blend 45–60 seconds until smooth, with ice if you want it thicker.']},
+ {name:'Chocolate peanut butter shake',types:['shake'],slots:[
+   S('liq',LIQ,200,450,300),
+   S('pro',[['whey',15,60,30]]),
+   S('nut',['pb'],5,32,15),
+   S('fruit',['banana','cherries','berries'],0,150,80,true),
+   S('carb',['oats'],0,60,0,true),
+   S('cocoa',['cocoa'],0,10,0,true)],
+  steps:[r=>`Pour ${r.t('liq')} into the blender.`,
+   r=>`Add ${r.list(['pro','nut','fruit','carb','cocoa'])}.`,
+   r=>r.has('carb')?'Blend 60–90 seconds so the oats go silky.':'Blend 45–60 seconds with a handful of ice.']},
+ {name:'Chocolate oats',types:['sweet'],slots:[
+   S('oats',['oats'],30,100,50),
+   S('liq',LIQ,100,300,150),
+   S('pro',[['whey',0,45,20],['soyyog',0,200,0],['almondyog',0,200,0],['cottage',0,200,0]],0,0,0,true),
+   S('seed',['chia','flax'],0,30,10,true),
+   S('fruit',FRUIT,0,180,80,true),
+   S('top',['almonds','pb','walnuts','darkchoc'],0,30,10,true)],
+  steps:[r=>`In a bowl or jar, stir together ${r.list(['oats','liq','pro','seed'])}.`,
+   ()=>'Eat it right away, or cover and refrigerate overnight if you want it softer.',
+   r=>r.list(['fruit','top'])&&`Top with ${r.list(['fruit','top'])} before eating.`]},
+ {name:'Yogurt-alternative bowl',types:['sweet'],slots:[
+   S('base',[['soyyog',100,300,170],['almondyog',100,250,150]]),
+   S('boost',['whey'],0,40,20,true),
+   S('fruit',FRUIT,0,200,100,true),
+   S('crunch',['oats','almonds','walnuts','pepitas','chia','flax'],0,40,15,true)],
+  steps:[r=>r.has('boost')?`Stir ${r.t('boost')} into ${r.t('base')}.`:`Spoon ${r.t('base')} into a bowl.`,
+   r=>r.list(['fruit','crunch'])&&`Top with ${r.list(['fruit','crunch'])}.`]},
+ {name:'Cottage cheese crunch bowl',types:['sweet'],slots:[
+   S('base',['cottage'],100,350,200),
+   S('boost',['whey'],0,30,0,true),
+   S('fruit',FRUIT,0,200,100,true),
+   S('crunch',['almonds','walnuts','pepitas','chia','flax'],0,35,15,true),
+   S('sweet',[['honey',0,20,5],['darkchoc',0,20,5]],0,0,0,true)],
+  steps:[r=>r.has('boost')?`Stir ${r.t('boost')} into ${r.t('base')}, loosening with a splash of water if it's thick.`:`Spoon ${r.t('base')} into a bowl.`,
+   r=>r.list(['fruit','crunch','sweet'])&&`Top with ${r.list(['fruit','crunch','sweet'])}.`]},
+ {name:'Chia pudding',types:['sweet'],slots:[
+   S('chia',['chia'],15,50,25),
+   S('liq',LIQ,150,350,200),
+   S('pro',['whey'],0,40,20,true),
+   S('fruit',['berries','strawberries','cherries','banana','blueberries','raspberries'],0,150,80,true)],
+  steps:[r=>`Whisk ${r.list(['liq','pro'])} until smooth.`,
+   r=>`Whisk in ${r.t('chia')}, wait 5 minutes, then whisk again to break up clumps.`,
+   ()=>'Refrigerate at least 2 hours.',
+   r=>r.has('fruit')&&`Top with ${r.t('fruit')}.`]},
+ {name:'Chocolate PB dip with fruit',types:['sweet'],slots:[
+   S('fruit',['apple','banana','strawberries'],100,250,180),
+   S('nut',['pb'],10,40,20),
+   S('pro',['whey'],10,40,20),
+   S('liq',LIQ,0,80,30,true)],
+  steps:[r=>`Mix ${r.list(['nut','pro','liq'])} into a thick dip.`,
+   r=>`Slice ${r.t('fruit')} for dipping.`]},
+ {name:r=>['tuna','kipper'].includes(r.id('pro'))?`${r.id('pro')==='tuna'?'Tuna':'Kipper'} avocado toast${r.has('cheese')?' melt':''}`:'Loaded toast',types:['savory','meal'],slots:[
+   S('base',[['bread',28,84,56],['carbsmart',22,88,44],['ricecake',9,45,27]]),
+   S('pro',[['tuna',40,150,80],['kipper',40,110,70],['salmon',30,120,60],['roastchicken',40,150,80],['ham',30,120,60],['eggs',50,150,100],['cottage',50,200,100]]),
+   S('spread',[['avocado',0,80,30],['hummus',0,80,30]],0,0,0,true),
+   S('veg',['cucumber','tomato','spinach',['onion',0,30,10]],0,120,50,true),
+   S('cheese',[['cheddar',0,30,0],['provolone',0,30,0],['feta',0,30,0]],0,0,0,true),
+   S('heat',[['hotsauce',5,5,5],['sriracha',5,5,5]],0,0,0,true)],
+  steps:[r=>r.id('pro')==='eggs'&&`Fry ${r.t('pro')} to your liking.`,
+   r=>r.id('base')==='ricecake'?`Lay out ${r.t('base')}.`:`Toast ${r.t('base')}.`,
+   r=>['tuna','kipper'].includes(r.id('pro'))&&r.has('spread')?`Mash ${r.t('pro')} with ${r.t('spread')}, a squeeze of lemon and black pepper, then spread it on.`:
+      (r.has('spread')?`Spread on ${r.t('spread')}, then add ${r.t('pro')}.`:`Top with ${r.t('pro')}.`),
+   r=>r.has('veg')&&`Layer on ${r.t('veg')}.`,
+   r=>r.has('cheese')&&`Add ${r.t('cheese')} and broil 1–2 minutes to melt.`,
+   r=>r.has('heat')?`Finish with ${r.t('heat')}.`:'Finish with black pepper or a little garlic powder.']},
+ {name:'Greens and egg scramble',types:['savory','meal'],slots:[
+   S('eggs',['eggs'],50,250,100),
+   S('whites',['whites'],0,250,100,true),
+   S('meat',[['turkeysausage',0,100,40],['ham',0,100,40],['bacon',0,30,15],['smokedsausage',0,100,40]],0,0,0,true),
+   S('greens',COOKGREENS,30,150,60),
+   S('veg',['pepper','tomato','mushrooms','onion','zucchini','broccoli'],0,150,60,true),
+   S('cheese',[['cheddar',0,30,15],['provolone',0,30,15],['feta',0,30,15]],0,0,0,true),
+   S('side',[['bread',0,84,28],['carbsmart',0,66,22],['tortilla',0,71,0],['potato',0,200,100],['sweetpot',0,200,100]],0,0,0,true),
+   S('fat',[['oil',0,10,3],['plantbutter',0,10,4]],0,0,0,true)],
+  steps:[r=>r.has('fat')?`Warm ${r.t('fat')} in a nonstick pan over medium heat.`:'Heat a nonstick pan over medium heat.',
+   r=>r.has('meat')&&`Brown ${r.t('meat')}, crumbled or chopped.`,
+   r=>r.has('veg')?`Cook ${r.t('veg')} 3–4 minutes, then add ${r.t('greens')} and stir until wilted.`:`Wilt ${r.t('greens')} for 1–2 minutes.`,
+   r=>`Beat ${r.list(['eggs','whites'])} together, pour in, and stir gently until just set.`,
+   r=>r.has('cheese')&&`Fold in ${r.t('cheese')}.`,
+   r=>r.has('side')&&`Serve with ${r.t('side')}${['bread','carbsmart'].includes(r.id('side'))?', toasted':r.id('side')==='tortilla'?', warmed':''}.`,
+   ()=>'Season with hot sauce or sriracha.']},
+ {name:r=>r.has('wrap')?'Ham and cheese pinwheels':'Ham and cheese roll-ups',types:['savory'],slots:[
+   S('ham',['ham'],40,150,80),
+   S('cheese',[['stringcheese',28,84,28],['cheddar',15,50,28],['provolone',15,50,28]]),
+   S('wrap',[['tortilla',0,71,0]],0,0,0,true),
+   S('spread',['avocado'],0,50,0,true),
+   S('veg',['cucumber','pepper','carrots','spinach'],0,150,80,true),
+   S('fruit',['apple','clementine','cherries','strawberries','peach'],0,200,0,true)],
+  steps:[r=>r.has('wrap')?`Spread ${r.has('spread')?r.t('spread'):'a little mustard'} on ${r.t('wrap')}, layer ${r.list(['ham','cheese'])}${r.id('veg')==='spinach'?` and ${r.t('veg')}`:''}, roll tight and slice into rounds.`:
+      `Roll ${r.t('cheese')} up inside the slices of ${r.t('ham')}${r.has('spread')?`, with ${r.t('spread')} mashed on the ham`:''}.`,
+   r=>{const side=[r.id('veg')==='spinach'&&r.has('wrap')?null:r.t('veg'),r.t('fruit')].filter(Boolean);return side.length?`Serve with ${joinAnd(side)}.`:null;}]},
+ {name:'Hummus snack plate',types:['savory'],slots:[
+   S('hummus',['hummus'],30,150,60),
+   S('veg1',['carrots','cucumber','pepper','tomato'],50,200,100),
+   S('veg2',['carrots','cucumber','pepper','tomato'],0,150,60,true),
+   S('pro',[['eggs',50,150,100],['roastchicken',40,150,80],['ham',30,120,60],['stringcheese',28,84,28],['tuna',40,150,80],['edamame',50,200,100]]),
+   S('carb',[['tortilla',0,71,0],['bread',0,56,28]],0,0,0,true)],
+  steps:[r=>`Spoon ${r.t('hummus')} onto a plate.`,
+   r=>`Cut ${r.list(['veg1','veg2'])} into dippers.`,
+   r=>`Add ${r.t('pro')}${r.id('pro')==='eggs'?', hard-boiled':''}${r.has('carb')?` and ${r.t('carb')}, cut into wedges`:''}.`]},
+ {name:'Crispy roasted chickpeas',types:['crunchy'],slots:[
+   S('chick',['chickpeas'],60,250,120),
+   S('oil',['oil'],0,10,5,true),
+   S('nut',['almonds','pepitas','walnuts'],0,40,15,true),
+   S('side',[['stringcheese',0,84,28],['eggs',0,150,50],['edamame',0,200,80]],0,0,0,true)],
+  steps:[()=>'Heat the oven to 200 °C / 400 °F, or the air fryer to 190 °C / 375 °F.',
+   r=>`Pat ${r.t('chick')} very dry, then toss with ${r.has('oil')?r.t('oil')+', ':''}salt and garlic powder or Italian seasoning.`,
+   ()=>'Roast 20–25 minutes (air fryer 12–15), shaking halfway, until crisp.',
+   r=>r.has('nut')&&`Toss with ${r.t('nut')} once cooled.`,
+   r=>r.has('side')&&`Eat alongside ${r.t('side')}${r.id('side')==='eggs'?', hard-boiled':''}.`]},
+ {name:r=>r.id('side')==='edamame'?'Popcorn and edamame':'Popcorn snack plate',types:['crunchy'],slots:[
+   S('pop',['popcorn'],10,50,25),
+   S('fat',[['oil',0,8,3],['plantbutter',0,10,4]],0,0,0,true),
+   S('cheese',['parm'],0,20,5,true),
+   S('side',[['stringcheese',28,84,56],['ham',30,120,60],['eggs',50,150,100],['edamame',50,250,120]]),
+   S('fruit',['apple','clementine','cherries','strawberries'],0,200,0,true)],
+  steps:[r=>{const c=Math.max(1,Math.round(r.g('pop')/8));return `Air-pop about ${c} cup${c>1?'s':''} of popcorn (${r.g('pop')} g of popped corn).`;},
+   r=>`Toss it with ${r.has('fat')?r.t('fat')+', ':''}${r.has('cheese')?r.t('cheese')+', ':''}salt and a pinch of garlic powder or chili flakes.`,
+   r=>r.id('side')==='edamame'?`Warm ${r.t('side')} with salt.`:`Pair with ${r.t('side')}${r.id('side')==='eggs'?', hard-boiled':r.id('side')==='ham'?', rolled up':''}${r.has('fruit')?` and ${r.t('fruit')}`:''}.`]},
+ {name:'Grab-and-go snack pack',types:['crunchy'],slots:[
+   S('nut',['almonds','walnuts','pepitas'],10,50,25),
+   S('sweet',['darkchoc'],0,25,10,true),
+   S('pop',['popcorn'],0,30,10,true),
+   S('pro',[['stringcheese',28,84,28],['eggs',50,100,50],['ham',30,100,50],['whey',15,40,25],['edamame',50,200,100]]),
+   S('fruit',['apple','banana','clementine','cherries','peach','strawberries'],0,200,0,true)],
+  steps:[r=>`Bag ${r.list(['nut','sweet','pop'])}.`,
+   r=>`Pair it with ${r.id('pro')==='whey'?r.t('pro')+' shaken with water':r.t('pro')+(r.id('pro')==='eggs'?', hard-boiled':'')}${r.has('fruit')?` and ${r.t('fruit')}`:''}.`]},
+ {name:'Egg and rice bowl',types:['eggrice','meal','savory'],slots:[
+   S('rice',['rice','brownrice'],80,300,150),
+   S('eggs',['eggs'],50,200,100),
+   S('whites',['whites'],0,200,0,true),
+   S('pro2',[['chicken',0,150,0],['chickenthigh',0,150,0],['roastchicken',0,150,0],['salmonfillet',0,150,0],['pinksalmon',0,150,0],['kipper',0,110,0],['tuna',0,150,0],['ham',0,100,0],['turkeysausage',0,100,0],['smokedsausage',0,100,0],['tofu',0,200,0],['shrimp',0,150,0]],0,0,0,true),
+   S('veg',['broccoli','mushrooms','pepper','zucchini','carrots','eggplant','corn','peas'],0,150,60,true),
+   S('greens',COOKGREENS,0,150,60,true),
+   S('fat',[['oil',0,10,4],['plantbutter',0,10,4],['sesameoil',0,10,4],['avocado',0,80,0]],0,0,0,true),
+   S('soy',['soy'],15,15,15),
+   S('heat',HEAT,0,0,0,true),
+   S('top',['scallions'],0,20,10,true)],
+  steps:[r=>`Warm ${r.t('rice')} and spread it in a bowl.`,
+   r=>r.list(['veg','greens'])&&`In a nonstick pan${['oil','plantbutter','sesameoil'].includes(r.id('fat'))?' with '+r.t('fat'):''}, cook ${r.list(['veg','greens'])} 2–4 minutes with a splash of the soy sauce, garlic and a little grated ginger.`,
+   r=>r.has('pro2')&&!['kipper','tuna'].includes(r.id('pro2'))&&`Warm ${r.t('pro2')} in the same pan.`,
+   r=>`Fry ${r.list(['eggs','whites'])} until the whites set and the edges crisp. Or soft-boil whole eggs 6½ minutes for jammy yolks.`,
+   r=>{const parts=['the eggs'];if(r.has('pro2'))parts.push(['kipper','tuna'].includes(r.id('pro2'))?r.t('pro2'):'the '+ING[r.id('pro2')].s.replace(/^cooked /,''));if(r.list(['veg','greens']))parts.push('the vegetables');if(r.id('fat')==='avocado')parts.push(r.t('fat'));
+     return `Pile ${joinAnd(parts)} on the rice, then drizzle with ${r.list(['soy','heat'])}${r.has('top')?` and scatter ${r.t('top')} on top`:''}.`;}]},
+ {name:'Egg fried rice',types:['eggrice','meal'],slots:[
+   S('rice',['rice','brownrice'],80,300,150),
+   S('eggs',['eggs'],50,200,100),
+   S('whites',['whites'],0,200,0,true),
+   S('oil',['oil','plantbutter','sesameoil'],5,15,7),
+   S('veg',['broccoli','mushrooms','carrots','pepper','onion','corn','zucchini','peas'],30,200,80),
+   S('pro2',[['ham',0,120,0],['chicken',0,150,0],['chickenthigh',0,150,0],['roastchicken',0,150,0],['turkeysausage',0,100,0],['smokedsausage',0,100,0],['shrimp',0,150,0],['tofu',0,200,0]],0,0,0,true),
+   S('greens',COOKGREENS,0,120,40,true),
+   S('soy',['soy'],15,15,15),
+   S('heat',HEAT,0,0,0,true),
+   S('top',['scallions'],0,25,15,true)],
+  steps:[r=>`Heat ${r.t('oil')} in a wok or large skillet over high heat.`,
+   r=>`Stir-fry ${r.list(['veg','pro2'])} with some garlic and grated ginger for 2–3 minutes.`,
+   r=>`Add ${r.t('rice')} (day-old is best) and fry until hot and a little crisp.`,
+   r=>`Push the rice aside, scramble ${r.list(['eggs','whites'])} in the gap, then toss everything together.`,
+   r=>`Season with ${r.list(['soy','heat'])}${r.has('greens')?', fold in '+r.t('greens')+' until wilted':''}${r.has('top')?', and finish with '+r.t('top'):''}.`]},
+ {name:'Salmon rice bowl',types:['meal','savory'],slots:[
+   S('rice',['rice','brownrice'],80,300,150),
+   S('fish',[['salmonfillet',60,200,120],['pinksalmon',60,200,120],['salmon',40,120,60],['kipper',50,110,80]]),
+   S('eggs',['eggs'],0,100,0,true),
+   S('avo',['avocado'],0,80,40,true),
+   S('cuc',['cucumber'],0,120,60,true),
+   S('greens',['spinach','lettuce'],0,80,0,true),
+   S('soy',['soy'],10,10,10),
+   S('heat',HEAT,0,0,0,true),
+   S('top',['scallions'],0,20,10,true)],
+  steps:[r=>['salmonfillet','pinksalmon'].includes(r.id('fish'))&&`Season ${r.raw('fish')} with salt, garlic powder and a splash of the soy sauce. Roast at 200 °C / 400 °F for 12–15 minutes (air fryer 8–10) until it flakes, then break it into pieces.`,
+   r=>r.has('eggs')&&`Soft-boil ${r.t('eggs')} for 6½ minutes, then cool and halve.`,
+   r=>`Warm ${r.t('rice')} in a bowl.`,
+   r=>`Top with ${joinAnd([['salmonfillet','pinksalmon'].includes(r.id('fish'))?'the salmon':r.t('fish'),r.t('greens'),r.t('cuc'),r.t('avo'),r.has('eggs')?'the eggs':''].filter(Boolean))}.`,
+   r=>`Drizzle with ${r.list(['soy','heat'])}${r.has('top')?` and finish with ${r.t('top')}`:''}.`]},
+ {name:'Grain bowl',types:['meal'],slots:[
+   S('grain',['rice','potato','squash','corn','brownrice','quinoa','sweetpot','pasta'],80,300,150),
+   S('pro',[['chicken',60,250,120],['chickenthigh',60,250,120],['roastchicken',60,250,120],['turkey',60,250,120],['porktenderloin',60,250,120],['salmonfillet',60,200,120],['pinksalmon',60,200,120],['tilapia',60,250,130],['catfish',60,250,120],['flounder',60,250,150],['eggs',50,200,100],['shrimp',60,250,120],['tofu',80,300,150]]),
+   S('leg',['blackbeans','kidney','whitebeans','chickpeas','lentils','edamame'],0,150,60,true),
+   S('greens',COOKGREENS,40,200,80),
+   S('veg',['broccoli','pepper','mushrooms','zucchini','tomato','carrots','eggplant','onion'],0,200,80,true),
+   S('fat',[['avocado',0,100,40],['oil',0,15,5],['plantbutter',0,15,5],['cheddar',0,40,15],['feta',0,40,15],['pepitas',0,30,10]],0,0,0,true)],
+  steps:[r=>`Warm ${r.list(['grain','leg'])}.`,
+   r=>`Sauté or steam ${r.list(['greens','veg'])} for 2–4 minutes with garlic powder and a pinch of salt.`,
+   r=>`Top with ${r.t('pro')}${r.id('pro')==='eggs'?', soft-boiled or fried':''}${r.has('fat')?` and ${r.t('fat')}`:''}.`,
+   ()=>'Finish with hot sauce, salsa verde or a squeeze of lemon.']},
+ {name:r=>FISH.includes(r.id('pro'))?'Fish wrap':'Loaded wrap',types:['meal'],slots:[
+   S('tort',['tortilla'],71,142,71),
+   S('pro',[['chicken',60,200,100],['chickenthigh',60,200,100],['roastchicken',60,200,100],['turkey',60,200,100],['tilapia',60,200,110],['catfish',60,200,100],['flounder',60,200,120],['turkeysausage',40,120,60],['eggs',50,150,100],['shrimp',60,200,100],['tofu',80,250,120]]),
+   S('beans',['blackbeans','kidney','lentils'],0,180,80,true),
+   S('veg',['pepper','lettuce','spinach','tomato','onion'],0,150,60,true),
+   S('top',[['avocado',0,80,30],['cheddar',0,40,20],['feta',0,40,15]],0,0,0,true),
+   S('salsa',['salsaverde'],0,80,30,true)],
+  steps:[r=>FISH.includes(r.id('pro'))?`Season ${r.raw('pro')} with salt, garlic powder and chili powder or cumin. Pan-sear 3–4 minutes a side, then flake.`:
+      `Warm ${r.list(['pro','beans'])} in a skillet with cumin and garlic powder${r.id('pro')==='eggs'?' (scramble the eggs)':''}.`,
+   r=>FISH.includes(r.id('pro'))&&r.has('beans')&&`Warm ${r.t('beans')} with a pinch of cumin.`,
+   r=>`Warm ${r.t('tort')}, then fill with ${joinAnd([FISH.includes(r.id('pro'))?'the fish':'the filling',r.t('veg'),r.t('top'),r.t('salsa')].filter(Boolean))} and roll up.`]},
+ {name:'Big protein salad',types:['meal'],slots:[
+   S('greens',['spinach','lettuce','chard','collards'],80,250,120),
+   S('pro',[['chicken',60,250,120],['roastchicken',60,250,120],['chickenthigh',60,250,120],['tuna',50,200,100],['kipper',50,110,80],['salmon',40,150,80],['salmonfillet',60,200,100],['pinksalmon',60,200,100],['eggs',50,200,100],['ham',40,150,80],['turkey',60,200,100],['shrimp',60,250,120],['tofu',80,250,150]]),
+   S('leg',['whitebeans','blackbeans','kidney','chickpeas','lentils','edamame'],0,150,60,true),
+   S('veg',['tomato','cucumber','pepper','carrots','mushrooms','corn',['onion',0,40,15]],0,200,100,true),
+   S('crunch',['almonds','pepitas','walnuts'],0,30,10,true),
+   S('cheese',['cheddar','feta','parm','provolone'],0,30,10,true),
+   S('oil',['oil'],0,15,7,true)],
+  steps:[r=>['chard','collards'].includes(r.id('greens'))&&'Strip the stems and slice the leaves into thin ribbons.',
+   r=>`Toss ${r.list(['greens','veg'])} with ${r.has('oil')?r.t('oil')+', ':''}a splash of apple cider vinegar, salt, pepper and a pinch of oregano.`,
+   r=>`Top with ${r.list(['pro','leg','crunch','cheese'])}${r.id('pro')==='eggs'?' (eggs hard-boiled)':''}.`]},
+ {name:r=>({turkey:'Turkey chili',beef:'Beef chili',chicken:'Chicken chili',chickenthigh:'Chicken thigh chili'})[r.id('meat')],types:['meal'],slots:[
+   S('meat',[['turkey',80,300,150],['beef',60,250,100],['chicken',80,300,150],['chickenthigh',80,300,150]]),
+   S('beans1',['blackbeans','kidney','whitebeans'],60,250,120),
+   S('beans2',['blackbeans','kidney','whitebeans'],0,200,0,true),
+   S('tom',['dicedtomato'],100,400,200),
+   S('onion',['onion'],30,150,60),
+   S('pepper',['pepper'],0,150,60,true),
+   S('corn',['corn'],0,120,0,true),
+   S('oil',['oil'],0,10,3,true),
+   S('top',[['cheddar',0,40,15],['avocado',0,80,30],['scallions',0,20,10]],0,0,0,true)],
+  steps:[r=>`Brown ${r.raw('meat')} with ${r.list(['onion','pepper'])}${r.has('oil')?` in ${r.t('oil')}`:''}, 6–8 minutes.`,
+   r=>`Stir in ${r.list(['tom','beans1','beans2','corn'])}, plus 1–2 tsp chili powder or cumin, garlic powder, oregano and a splash of water.`,
+   ()=>'Simmer 15–20 minutes, stirring now and then.',
+   r=>r.has('top')&&`Top with ${r.t('top')}.`,
+   ()=>'It scales well: multiply everything by four and portion it out for the week.']},
+ {name:'Sheet-pan dinner',types:['meal'],slots:[
+   S('pro',[['chicken',80,250,130],['chickenthigh',80,250,130],['porktenderloin',80,250,130],['porkchop',80,250,120],['smokedsausage',50,150,80],['turkeysausage',50,150,80],['salmonfillet',80,220,130],['pinksalmon',80,220,130],['tilapia',80,250,140],['catfish',80,250,130],['flounder',80,250,150]]),
+   S('starch',['potato','squash','sweetpot'],0,300,150,true),
+   S('veg1',['broccoli','pepper','zucchini','carrots','mushrooms','eggplant','onion'],60,250,150),
+   S('veg2',['broccoli','pepper','zucchini','carrots','mushrooms','eggplant','onion'],0,200,80,true),
+   S('fat',['oil','plantbutter'],3,15,8)],
+  steps:[()=>'Heat the oven to 220 °C / 425 °F.',
+   r=>r.has('starch')&&`Cut ${r.t('starch')} into 2 cm pieces, toss with half of ${r.t('fat')}, salt, garlic powder and Italian seasoning, and roast 15 minutes.`,
+   r=>`Add ${r.raw('pro')} and ${r.list(['veg1','veg2'])}, tossed with ${r.has('starch')?'the rest of the fat':r.t('fat')} and the same seasoning.`,
+   r=>FISH.includes(r.id('pro'))?'Roast 10–12 minutes more, until the fish flakes (63 °C / 145 °F).':
+      r.id('pro')==='smokedsausage'?'Roast 15–20 minutes more, until the vegetables are browned at the edges.':
+      `Roast 15–20 minutes more, until the ${['porktenderloin','porkchop'].includes(r.id('pro'))?'pork reaches 63 °C / 145 °F':r.id('pro')==='turkeysausage'?'sausage reaches 74 °C / 165 °F':'chicken reaches 74 °C / 165 °F'}.`]},
+];
+// Slots that only hold sauces/seasonings or a green-onion garnish drop out in Simple mode.
+T.forEach(tp=>tp.slots.forEach(sl=>{const ids=sl.o.map(o=>Array.isArray(o)?o[0]:o);
+  if(ids.every(id=>ING[id].g===8)||(sl.k==='top'&&ids.every(id=>id==='scallions')))sl.extra=true;}));
+// One-line, seasoning-free directions for Simple mode, in the same order as T.
+const QUICK=[
+ ()=>'Blend everything until smooth.',
+ ()=>'Blend everything until smooth.',
+ r=>`Stir the oats, liquid and protein together${r.list(['fruit','top'])?' and add the toppings':''}. Eat now or chill overnight.`,
+ ()=>'Stir together in a bowl.',
+ ()=>'Stir together in a bowl.',
+ ()=>'Whisk the liquid and protein, stir in the chia, chill 2 hours, then top with the fruit.',
+ ()=>'Mix the peanut butter, whey and liquid into a dip, and slice the fruit.',
+ r=>`${r.id('pro')==='eggs'?'Fry the eggs, then t':'T'}oast the bread and pile everything on top${r.has('cheese')?', broiling briefly to melt the cheese':''}.`,
+ r=>`Cook ${r.list(['meat','veg'])?'the meat and vegetables, then ':''}wilt the greens and scramble in the eggs${r.has('side')?'. Serve with the side':''}.`,
+ r=>r.has('wrap')?'Layer everything on the wrap, roll it up and slice.':'Roll the cheese up in the ham and eat the rest on the side.',
+ ()=>'Cut the vegetables into dippers and plate everything.',
+ ()=>'Dry the chickpeas, roast at 200 °C / 400 °F for 20–25 minutes until crisp, and eat with the rest.',
+ ()=>'Air-pop the popcorn, toss with the fat if using, and plate with the rest.',
+ ()=>'Pack everything up.',
+ ()=>'Warm the rice, cook the vegetables and eggs, and pile it all together.',
+ ()=>'Stir-fry the vegetables and protein in the fat, add the rice, then scramble in the eggs.',
+ r=>['salmonfillet','pinksalmon'].includes(r.id('fish'))?'Roast the salmon at 200 °C / 400 °F for 12–15 minutes, then pile it on the rice with everything else.':'Pile everything on the rice.',
+ ()=>'Warm the base and beans, cook the greens and vegetables, and top with the protein.',
+ r=>FISH.includes(r.id('pro'))?'Pan-sear the fish 3–4 minutes a side, then roll it up in the warm wrap with everything else.':'Warm the filling, then roll it up in the wrap with everything else.',
+ ()=>'Toss the greens and vegetables with the oil, then top with everything else.',
+ ()=>'Brown the meat with the onion and pepper, add the tomatoes, beans and a splash of water, and simmer 15–20 minutes.',
+ r=>`Roast at 220 °C / 425 °F with the fat${r.has('starch')?', giving the starch a 15-minute head start':''}. ${FISH.includes(r.id('pro'))?'Fish needs 10–12 minutes, to 63 °C / 145 °F':['porktenderloin','porkchop'].includes(r.id('pro'))?'Pork needs 15–20 minutes, to 63 °C / 145 °F':r.id('pro')==='smokedsausage'?'Sausage and vegetables need 15–20 minutes':'Chicken or sausage needs 15–20 minutes, to 74 °C / 165 °F'}.`,
+];
+T.forEach((tp,i)=>tp.quick=QUICK[i]);
+const TYPES=[['any','Any'],['eggrice','Egg & rice'],['shake','Shake'],['sweet','Sweet'],['savory','Savory'],['crunchy','Crunchy'],['meal','Full meal']];
+const TYPE_LABEL={eggrice:'Egg and rice bowl',shake:'Shake',sweet:'Sweet snack',savory:'Savory snack',crunchy:'Crunchy snack',meal:'Meal'};
+
+/* ---------- Solver: box-constrained least squares by coordinate descent ---------- */
+const W=[1.25,1,1,1], FLOOR=[8,8,4,3], LAM=0.03;
+function solve(vars,t,x0){
+  const n=vars.length, wm=MK.map((_,m)=>W[m]/Math.pow(Math.max(t[m],FLOOR[m]),2));
+  const Q=[],b=[];
+  for(let i=0;i<n;i++){
+    Q[i]=[];
+    for(let j=0;j<n;j++){let q=0;for(let m=0;m<4;m++)q+=wm[m]*vars[i].a[m]*vars[j].a[m];Q[i][j]=q;}
+    Q[i][i]+=LAM;
+    let bb=LAM*vars[i].d;for(let m=0;m<4;m++)bb+=wm[m]*vars[i].a[m]*t[m];b[i]=bb;
+  }
+  const x=x0?x0.slice():vars.map(v=>Math.min(v.hi,Math.max(v.lo,v.d)));
+  for(let s=0;s<50;s++)for(let i=0;i<n;i++){
+    const v=vars[i]; if(v.lo===v.hi){x[i]=v.lo;continue;}
+    let r=b[i];for(let j=0;j<n;j++)if(j!==i)r-=Q[i][j]*x[j];
+    x[i]=Math.min(v.hi,Math.max(v.lo,r/Q[i][i]));
+  }
+  return x;
+}
+function totals(items,grams){const tot=[0,0,0,0];items.forEach((it,i)=>{const a=vec(it.id);for(let m=0;m<4;m++)tot[m]+=a[m]*grams[i]/100;});return tot;}
+function score(tot,t){let e=0;for(let m=0;m<4;m++){const s=Math.max(t[m],FLOOR[m]);e+=W[m]*Math.pow((tot[m]-t[m])/s,2);}return e;}
+function fit(items,t){
+  const vars=items.map(it=>({a:vec(it.id),lo:it.lo/100,hi:it.hi/100,d:it.d/100}));
+  let x=solve(vars,t), anyU=false;
+  items.forEach((it,i)=>{const u=ING[it.id].u;if(!u)return;anyU=true;
+    const minK=Math.ceil(it.lo/u[0]-1e-9),maxK=Math.floor(it.hi/u[0]+1e-9);
+    const k=Math.max(minK,Math.min(maxK,Math.round(x[i]*100/u[0])));
+    vars[i].lo=vars[i].hi=x[i]=k*u[0]/100;});
+  if(anyU)x=solve(vars,t,x);
+  // Drop token amounts of optional ingredients (a pinch of whey, a few berries), then re-fit the rest.
+  let dropped=false;
+  items.forEach((it,i)=>{if(it.lo===0&&!ING[it.id].u&&x[i]*100<Math.max(3,Math.min(10,0.2*it.hi))){vars[i].lo=vars[i].hi=x[i]=0;dropped=true;}});
+  if(dropped)x=solve(vars,t,x);
+  const grams=x.map((v,i)=>{const it=items[i];if(ING[it.id].u)return Math.round(v*100);
+    const st=it.hi<=40?1:5;let g=Math.round(v*100/st)*st;g=Math.min(it.hi,Math.max(it.lo,g));
+    if(it.lo===0&&g<3)g=0;return g;});
+  const tot=totals(items,grams);
+  return {items,grams,tot,err:score(tot,t)};
+}
+function expandSlot(sl,pantry){
+  return sl.o.map(o=>Array.isArray(o)?{id:o[0],lo:o[1],hi:o[2],d:o[3]}:{id:o,lo:sl.lo,hi:sl.hi,d:sl.d})
+    .filter(o=>pantry.has(o.id)).map(o=>({...o,slot:sl.k,opt:sl.opt}));
+}
+function runTemplate(tp,pantry,t){
+  const slots=[];
+  for(const sl of tp.slots){if(state.simple&&sl.extra)continue;const ops=expandSlot(sl,pantry);if(!ops.length){if(sl.opt)continue;return [];}slots.push(ops);}
+  const total=slots.reduce((a,o)=>a*o.length,1);
+  const cache=new Map();
+  const evalC=c=>{const k=c.map(o=>o.slot+':'+o.id).join('|');if(cache.has(k))return cache.get(k);
+    const r=new Set(c.map(o=>o.id)).size<c.length?null:fit(c,t);cache.set(k,r);return r;};
+  if(total<=2500){
+    let combos=[[]];
+    for(const ops of slots){const nx=[];for(const c of combos)for(const o of ops)nx.push([...c,o]);combos=nx;}
+    combos.forEach(evalC);
+  }else{
+    // Too many combinations: multi-start local search, swapping one slot's ingredient at a time.
+    let seed=97;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+    for(let s=0;s<18;s++){
+      let cur=slots.map(ops=>ops[Math.floor(rnd()*ops.length)]),best=evalC(cur);
+      if(!best)continue;
+      for(let pass=0;pass<4;pass++){let improved=false;
+        for(let i=0;i<slots.length;i++)for(const o of slots[i]){if(o===cur[i])continue;
+          const c=cur.slice();c[i]=o;const r=evalC(c);if(r&&r.err<best.err-1e-9){best=r;cur=c;improved=true;}}
+        if(!improved)break;}
+    }
+  }
+  const res=[...cache.values()].filter(Boolean).sort((a,b)=>a.err-b.err);
+  const seen=new Set(),out=[];
+  for(const r of res){const key=r.items.map((it,i)=>r.grams[i]>0?it.slot+':'+it.id:'').join('|');
+    if(seen.has(key))continue;seen.add(key);out.push({tp,...r});if(out.length>=4)break;}
+  return out;
+}
+
+/* ---------- Text helpers ---------- */
+function amount(id,g){const I=ING[id];
+  if(I.u){const k=Math.round(g/I.u[0]);return {short:`${k} ${k===1?I.u[1]:I.u[2]}`,full:`${k} ${k===1?I.u[1]:I.u[2]} (${g} g)`,noun:true};}
+  const txt=I.liq?`${g} ml`:`${g} g`;
+  if(I.rn)return {short:`${txt} ${I.s}`,full:`${g} g cooked (about ${rawG(id,g)} g raw)`};
+  return {short:I.tb?`${spoon(g,I.tb).replace('about ','')} ${I.s}`:`${txt} ${I.s}`,full:I.tb?`${txt} (${spoon(g,I.tb)})`:txt};}
+function rawG(id,g){return Math.round(g/(ING[id].y||0.75)/5)*5;}
+function spoon(g,tb){const t=g/tb;if(t>=0.75){const r=Math.round(t*2)/2;return `about ${r} tbsp`;}
+  const ts=Math.max(0.5,Math.round(t*3*2)/2);return `about ${ts} tsp`;}
+function joinAnd(a){return a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];}
+function helper(r){
+  const bySlot={};r.items.forEach((it,i)=>{if(r.grams[i]>0)bySlot[it.slot]={id:it.id,g:r.grams[i]};});
+  return {has:k=>!!bySlot[k],g:k=>bySlot[k]?bySlot[k].g:0,id:k=>bySlot[k]&&bySlot[k].id,uses:id=>Object.values(bySlot).some(v=>v.id===id),
+    raw:k=>{const v=bySlot[k];if(!v)return '';const I=ING[v.id];return I.rn?`about ${rawG(v.id,v.g)} g raw ${I.rn} (${v.g} g cooked)`:amount(v.id,v.g).short;},
+    t:k=>bySlot[k]?amount(bySlot[k].id,bySlot[k].g).short:'',
+    list:ks=>joinAnd(ks.filter(k=>bySlot[k]).map(k=>amount(bySlot[k].id,bySlot[k].g).short))};
+}
+
+/* ---------- State ---------- */
+const KEY='snackscope.v2';
+const defaultPantry=()=>Object.keys(ING).filter(k=>!ING[k].off);
+let state={t:{p:30,c:25,f:10,fb:8},type:'any',pantry:defaultPantry(),over:{}};
+try{
+  const s=JSON.parse(localStorage.getItem(KEY)||'null');
+  if(s&&s.t){const known=new Set(s.known||[]);const fresh=Object.keys(ING).filter(k=>!known.has(k)&&!ING[k].off);
+    state={...state,...s,over:s.over||{},pantry:[...(s.pantry||[]),...fresh].filter(k=>ING[k])};}
+  else{const old=JSON.parse(localStorage.getItem('snackscope.v1')||'null');if(old&&old.t)state.t=old.t;}
+}catch(e){}
+if((state.rev||0)<3){['brownrice','soymilk'].forEach(k=>{if(!state.pantry.includes(k))state.pantry.push(k);});state.rev=3;}
+state.known=Object.keys(ING);
+Object.entries(state.over).forEach(([id,v])=>{if(ING[id])Object.assign(ING[id],v);});
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}};
+let page=0, ranked=[];
+
+/* ---------- UI: dials ---------- */
+const MAX={p:80,c:150,f:60,fb:30};
+const dials=document.getElementById('dials');
+MK.forEach(m=>{
+  const d=document.createElement('div');d.className='dial';d.style.setProperty('--m',`var(--${m})`);
+  d.innerHTML=`<label for="n-${m}">${MNAME[m]}</label>
+    <div class="num"><input type="number" id="n-${m}" inputmode="numeric" min="0" max="${MAX[m]*2}" value="${state.t[m]}"><span class="unit">g</span></div>
+    <input type="range" id="r-${m}" min="0" max="${MAX[m]}" step="1" value="${Math.min(MAX[m],state.t[m])}" aria-label="${MNAME[m]} grams">`;
+  dials.appendChild(d);
+  const n=d.querySelector('input[type=number]'),r=d.querySelector('input[type=range]');
+  r.addEventListener('input',()=>{n.value=r.value;state.t[m]=+r.value;changed();});
+  n.addEventListener('input',()=>{const v=Math.max(0,+n.value||0);state.t[m]=v;r.value=Math.min(MAX[m],v);changed();});
+});
+function kcal(p,c,f,fb){return Math.round(4*p+4*Math.max(0,c-fb)+2*fb+9*f);}
+function showKcal(){const t=state.t;document.getElementById('kcal').innerHTML=`That's about <strong>${kcal(t.p,t.c,t.f,Math.min(t.fb,t.c))} kcal</strong>.`;}
+
+/* ---------- UI: type toggle ---------- */
+const typesEl=document.getElementById('types');
+TYPES.forEach(([k,l])=>{const b=document.createElement('button');b.type='button';b.className='chip';b.setAttribute('role','radio');b.dataset.k=k;b.textContent=l;
+  b.addEventListener('click',()=>{state.type=k;markTypes();changed(true);});typesEl.appendChild(b);});
+function markTypes(){typesEl.querySelectorAll('.chip').forEach(b=>{const on=b.dataset.k===state.type;b.setAttribute('aria-checked',on);b.tabIndex=on?0:-1;});}
+typesEl.addEventListener('keydown',e=>{if(!['ArrowRight','ArrowLeft'].includes(e.key))return;e.preventDefault();
+  const i=TYPES.findIndex(x=>x[0]===state.type),n=(i+(e.key==='ArrowRight'?1:-1)+TYPES.length)%TYPES.length;
+  state.type=TYPES[n][0];markTypes();typesEl.children[n].focus();changed(true);});
+
+/* ---------- UI: pantry ---------- */
+const pantryEl=document.getElementById('pantry');
+function drawPantry(){
+  const on=new Set(state.pantry);pantryEl.innerHTML='';
+  GROUPS.forEach((g,gi)=>{const wrap=document.createElement('div');wrap.className='group';
+    wrap.innerHTML=`<h3>${g}</h3>`;const row=document.createElement('div');row.className='types';
+    Object.entries(ING).filter(([,v])=>v.g===gi).forEach(([id,v])=>{
+      const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=v.n;b.setAttribute('aria-pressed',on.has(id));
+      b.addEventListener('click',()=>{const s=new Set(state.pantry);s.has(id)?s.delete(id):s.add(id);state.pantry=[...s];b.setAttribute('aria-pressed',s.has(id));countPantry();changed(true);});
+      row.appendChild(b);});
+    wrap.appendChild(row);pantryEl.appendChild(wrap);});
+  countPantry();
+}
+function countPantry(){document.getElementById('pcount').textContent=`${state.pantry.length} of ${Object.keys(ING).length} on hand`;}
+document.getElementById('pReset').addEventListener('click',()=>{state.pantry=defaultPantry();drawPantry();changed(true);});
+const eSel=document.getElementById('eSel'),eIn={srv:'eSrv',p:'eP',c:'eC',f:'eF',fb:'eFb'};
+Object.keys(eIn).forEach(k=>eIn[k]=document.getElementById(eIn[k]));
+Object.entries(ING).sort((a,b)=>a[1].n.localeCompare(b[1].n)).forEach(([id,v])=>{const o=document.createElement('option');o.value=id;o.textContent=v.n+(v.est?' *':'');eSel.appendChild(o);});
+eSel.value=Object.keys(ING).find(k=>ING[k].est)||'chicken';
+function fillEdit(){const I=ING[eSel.value],srv=I.u?I.u[0]:100;eIn.srv.value=srv;
+  MK.forEach(m=>eIn[m].value=+(I[m]*srv/100).toFixed(1));document.getElementById('eMsg').textContent='';}
+eSel.addEventListener('change',fillEdit);
+document.getElementById('eSave').addEventListener('click',()=>{const srv=+eIn.srv.value,msg=document.getElementById('eMsg');
+  if(!(srv>0)){msg.textContent='Enter the serving size in grams.';return;}
+  const v={};MK.forEach(m=>v[m]=Math.max(0,+eIn[m].value||0)*100/srv);
+  state.over[eSel.value]=v;Object.assign(ING[eSel.value],v);msg.textContent='Saved.';changed(true);});
+document.getElementById('eReset').addEventListener('click',()=>{const id=eSel.value;delete state.over[id];
+  MK.forEach(m=>ING[id][m]=DEFAULT_ING[id][m]);fillEdit();document.getElementById('eMsg').textContent='Back to default values.';changed(true);});
+fillEdit();
+document.getElementById('pAll').addEventListener('click',()=>{state.pantry=Object.keys(ING);drawPantry();changed(true);});
+document.getElementById('pNone').addEventListener('click',()=>{state.pantry=[];drawPantry();changed(true);});
+
+/* ---------- Compute and render ---------- */
+function compute(){
+  const t=MK.map(m=>state.t[m]),pantry=new Set(state.pantry);
+  const tps=T.filter(tp=>state.type==='any'||tp.types.includes(state.type));
+  const per=tps.map(tp=>runTemplate(tp,pantry,t)).filter(a=>a.length).sort((a,b)=>a[0].err-b[0].err);
+  ranked=[];for(let k=0;k<4;k++)for(const a of per)if(a[k])ranked.push(a[k]);
+}
+function render(){
+  const out=document.getElementById('results'),t=state.t;
+  document.getElementById('more').hidden=ranked.length<3;
+  if(!MK.some(m=>t[m]>0)){out.innerHTML='<div class="empty">Set at least one target above to get recipes.</div>';return;}
+  if(!ranked.length){const lab=TYPES.find(x=>x[0]===state.type)[1];
+    out.innerHTML=`<div class="empty">Nothing in the ${lab==='Any'?'recipe list':lab.toLowerCase()+' recipes'} can be made from your pantry. Open Pantry below and add a protein and a base like milk, oats or a grain.</div>`;return;}
+  const pages=Math.ceil(ranked.length/2),p=page%pages,show=ranked.slice(p*2,p*2+2);
+  out.innerHTML=show.map(r=>card(r,t)).join('');
+}
+function card(r,t){
+  const h=helper(r),[P,C,F,FB]=r.tot;
+  const rows=MK.map((m,i)=>{const got=r.tot[i],tg=t[m],mx=Math.max(tg,got,1)*1.2,d=Math.round(got-tg);
+    const close=Math.abs(got-tg)<=Math.max(2,0.1*tg);
+    return `<span class="lab" style="--m:var(--${m})">${MNAME[m]}</span>
+      <span class="track" style="--m:var(--${m})" aria-hidden="true"><span class="bar" style="width:${(got/mx*100).toFixed(1)}%"></span><span class="tick" style="left:${(tg/mx*100).toFixed(1)}%"></span></span>
+      <span class="val">${Math.round(got)} g <span class="off">${close?'on target':(d>0?'+':'')+d+' g'}</span></span>`;}).join('');
+  const ing=r.items.map((it,i)=>r.grams[i]>0?`<li><span>${ING[it.id].n}</span><span class="amt">${amount(it.id,r.grams[i]).full}</span></li>`:'').join('');
+  const steps=state.simple?'':r.tp.steps.map(f=>f(h)).filter(Boolean).map(s=>`<li>${s}</li>`).join('');
+  const kinds=r.tp.types.filter(k=>k!=='eggrice').map(k=>TYPE_LABEL[k]).join(' or ');
+  return `<article class="recipe"><h3>${typeof r.tp.name==='function'?r.tp.name(h):r.tp.name}</h3>
+    <p class="kind">${kinds}, about ${kcal(P,C,F,FB)} kcal</p>
+    <div class="fit" role="img" aria-label="${MK.map((m,i)=>`${MNAME[m]} ${Math.round(r.tot[i])} of ${t[m]} grams`).join(', ')}">${rows}</div>
+    <h4>Ingredients</h4><ul>${ing}</ul>${state.simple?`<h4>How</h4><p class="how">${r.tp.quick(h)}</p>`:`<h4>Steps</h4><ol>${steps}</ol>`}</article>`;
+}
+let timer=null;
+function changed(resetPage){showKcal();save();if(resetPage)page=0;clearTimeout(timer);timer=setTimeout(()=>{compute();render();},220);}
+document.getElementById('more').addEventListener('click',()=>{page++;render();document.getElementById('results').scrollIntoView({block:'nearest'});});
+
+const simpleBtn=document.getElementById('simple');
+simpleBtn.setAttribute('aria-checked',!!state.simple);
+simpleBtn.addEventListener('click',()=>{state.simple=!state.simple;simpleBtn.setAttribute('aria-checked',state.simple);changed(true);});
+markTypes();drawPantry();showKcal();compute();render();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
