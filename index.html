@@ -213,6 +213,7 @@ const ING={
  flounder:{n:'Flounder',s:'cooked flounder',g:0,p:15.2,c:0,f:2.4,fb:0,rn:'flounder',y:0.8},
  eggs:{n:'Eggs',s:'eggs',g:0,p:12.6,c:0.7,f:9.5,fb:0,u:[50,'egg','eggs']},
  whites:{n:'Liquid egg whites',s:'liquid egg whites',g:0,p:10.9,c:0.7,f:0.2,fb:0,liq:1},
+ peaprotein:{n:"Anthony's pea protein (unflavored)",s:'unflavored pea protein',g:0,p:80,c:5,f:5,fb:0,tb:10},
  whey:{n:'Chocolate whey protein',s:'chocolate whey',g:0,p:75,c:9.4,f:4.7,fb:1,est:1},
  shrimp:{n:'Shrimp',s:'cooked shrimp',g:0,p:24,c:0.2,f:0.3,fb:0,off:1},
  tofu:{n:'Tofu, firm',s:'firm tofu',g:0,p:17.3,c:2.8,f:8.7,fb:2.3,off:1},
@@ -327,7 +328,7 @@ const T=[
   steps:[r=>`Pour ${r.t('liq')} into the blender.`,
    r=>`Add ${r.list(['pro','fruit','fat','fib','greens'])}.`,
    r=>['chia','flax','psyllium'].some(x=>r.uses(x))?'Blend 60 seconds, then let it sit 2–3 minutes to thicken.':'Blend 45–60 seconds until smooth, with ice if you want it thicker.']},
- {name:'Chocolate peanut butter shake',types:['shake'],slots:[
+ {name:r=>(r.uses('whey')||r.uses('cocoa')?'Chocolate '+'peanut butter shake':'peanut butter shake'[0].toUpperCase()+'peanut butter shake'.slice(1)),types:['shake'],slots:[
    S('liq',LIQ,200,450,300),
    S('pro',[['whey',15,60,30]]),
    S('nut',['pb'],5,32,15),
@@ -337,7 +338,7 @@ const T=[
   steps:[r=>`Pour ${r.t('liq')} into the blender.`,
    r=>`Add ${r.list(['pro','nut','fruit','carb','cocoa'])}.`,
    r=>r.has('carb')?'Blend 60–90 seconds so the oats go silky.':'Blend 45–60 seconds with a handful of ice.']},
- {name:'Chocolate oats',types:['sweet'],slots:[
+ {name:r=>(r.uses('whey')||r.uses('cocoa')?'Chocolate '+'protein oats':'protein oats'[0].toUpperCase()+'protein oats'.slice(1)),types:['sweet'],slots:[
    S('oats',['oats'],30,100,50),
    S('liq',LIQ,100,300,150),
    S('pro',[['whey',0,45,20],['soyyog',0,200,0],['almondyog',0,200,0],['cottage',0,200,0]],0,0,0,true),
@@ -371,7 +372,7 @@ const T=[
    r=>`Whisk in ${r.t('chia')}, wait 5 minutes, then whisk again to break up clumps.`,
    ()=>'Refrigerate at least 2 hours.',
    r=>r.has('fruit')&&`Top with ${r.t('fruit')}.`]},
- {name:'Chocolate PB dip with fruit',types:['sweet'],slots:[
+ {name:r=>(r.uses('whey')||r.uses('cocoa')?'Chocolate '+'PB dip with fruit':'PB dip with fruit'[0].toUpperCase()+'PB dip with fruit'.slice(1)),types:['sweet'],slots:[
    S('fruit',['apple','banana','strawberries'],100,250,180),
    S('nut',['pb'],10,40,20),
    S('pro',['whey'],10,40,20),
@@ -453,7 +454,7 @@ const T=[
    S('pro',[['stringcheese',28,84,28],['eggs',50,100,50],['ham',30,100,50],['whey',15,40,25],['edamame',50,200,100]]),
    S('fruit',['apple','banana','clementine','cherries','peach','strawberries'],0,200,0,true)],
   steps:[r=>`Bag ${r.list(['nut','sweet','pop'])}.`,
-   r=>`Pair it with ${r.id('pro')==='whey'?r.t('pro')+' shaken with water':r.t('pro')+(r.id('pro')==='eggs'?', hard-boiled':'')}${r.has('fruit')?` and ${r.t('fruit')}`:''}.`]},
+   r=>`Pair it with ${['whey','peaprotein'].includes(r.id('pro'))?r.t('pro')+' shaken with water':r.t('pro')+(r.id('pro')==='eggs'?', hard-boiled':'')}${r.has('fruit')?` and ${r.t('fruit')}`:''}.`]},
  {name:'Egg and rice bowl',types:['eggrice','meal','savory'],slots:[
    S('rice',['rice','brownrice'],80,300,150),
    S('eggs',['eggs'],50,200,100),
@@ -563,6 +564,8 @@ const T=[
       r.id('pro')==='smokedsausage'?'Roast 15–20 minutes more, until the vegetables are browned at the edges.':
       `Roast 15–20 minutes more, until the ${['porktenderloin','porkchop'].includes(r.id('pro'))?'pork reaches 63 °C / 145 °F':r.id('pro')==='turkeysausage'?'sausage reaches 74 °C / 165 °F':'chicken reaches 74 °C / 165 °F'}.`]},
 ];
+T.forEach(tp=>tp.slots.forEach(sl=>{const i=sl.o.findIndex(o=>(Array.isArray(o)?o[0]:o)==='whey');
+  if(i>=0)sl.o.splice(i+1,0,Array.isArray(sl.o[i])?['peaprotein',...sl.o[i].slice(1)]:'peaprotein');}));
 // Slots that only hold sauces/seasonings or a green-onion garnish drop out in Simple mode.
 T.forEach(tp=>tp.slots.forEach(sl=>{const ids=sl.o.map(o=>Array.isArray(o)?o[0]:o);
   if(ids.every(id=>ING[id].g===8)||(sl.k==='top'&&ids.every(id=>id==='scallions')))sl.extra=true;}));
