@@ -111,7 +111,7 @@ details[open] summary::after{content:"Hide"}
 .ing .nm{flex:1}
 .ing .amt{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
 .amtbtn{font:inherit;font-weight:600;color:var(--ink);background:none;border:0;border-bottom:1.5px dashed var(--line);padding:4px 0;cursor:pointer}
-.qty{display:flex;align-items:center;gap:10px;padding:4px 0 10px;flex-wrap:wrap}
+.qty{position:relative;background:var(--panel);display:flex;align-items:center;gap:10px;padding:4px 0 10px;flex-wrap:wrap}
 .qb{font:inherit;font-size:1.3rem;line-height:1;width:44px;height:40px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
 .qb:disabled{opacity:.35;cursor:default}
 .qv{font-weight:600;font-variant-numeric:tabular-nums;min-width:6ch;text-align:center}
@@ -119,7 +119,7 @@ details[open] summary::after{content:"Hide"}
 .ing .acts{display:flex;gap:2px}
 .ib{font:inherit;font-size:.95rem;color:var(--muted);background:none;border:0;border-radius:6px;width:34px;height:34px;cursor:pointer}
 .ib:hover{background:var(--bg);color:var(--ink)}
-.swipe-bg{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;padding:0 12px;font-weight:600;font-size:.9rem;color:#fff}
+.swipe-bg{position:absolute;inset:0;pointer-events:none;display:flex;justify-content:space-between;align-items:center;padding:0 12px;font-weight:600;font-size:.9rem;color:#fff}
 .swipe-bg span{opacity:0}
 .ing.to-swap .swipe-bg{background:var(--f)} .ing.to-swap .sw{opacity:.75}
 .ing.to-remove .swipe-bg{background:var(--p)} .ing.to-remove .rm{opacity:.75}
