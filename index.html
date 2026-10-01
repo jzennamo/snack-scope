@@ -110,6 +110,12 @@ details[open] summary::after{content:"Hide"}
 .ing.dragging .row{transition:none}
 .ing .nm{flex:1}
 .ing .amt{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.amtbtn{font:inherit;font-weight:600;color:var(--ink);background:none;border:0;border-bottom:1.5px dashed var(--line);padding:4px 0;cursor:pointer}
+.qty{display:flex;align-items:center;gap:10px;padding:4px 0 10px;flex-wrap:wrap}
+.qb{font:inherit;font-size:1.3rem;line-height:1;width:44px;height:40px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.qb:disabled{opacity:.35;cursor:default}
+.qv{font-weight:600;font-variant-numeric:tabular-nums;min-width:6ch;text-align:center}
+.qcap{font-size:.8rem;color:var(--muted);margin-left:auto}
 .ing .acts{display:flex;gap:2px}
 .ib{font:inherit;font-size:.95rem;color:var(--muted);background:none;border:0;border-radius:6px;width:34px;height:34px;cursor:pointer}
 .ib:hover{background:var(--bg);color:var(--ink)}
@@ -1028,7 +1034,7 @@ function render(){
   if(!ranked.length){const lab=TYPES.find(x=>x[0]===state.type)[1];
     out.innerHTML=`<div class="empty">Nothing in the ${lab==='Any'?'recipe list':lab.toLowerCase()+' recipes'} can be made from your pantry. Open Pantry below and add a protein and a base like milk, oats or a grain.</div>`;return;}
   const pages=Math.ceil(ranked.length/2),p=page%pages,show=ranked.slice(p*2,p*2+2);
-  cards=show.map(r=>({base:r,cur:r,removed:new Set(),tried:{},msg:''}));
+  cards=show.map(r=>({base:r,cur:r,removed:new Set(),tried:{},msg:'',locks:new Map(),open:null,dirty:false}));
   out.innerHTML=cards.map((c,k)=>card(c,k,t)).join('');
 }
 let cards=[];
@@ -1041,8 +1047,8 @@ function card(cd,k,t){
       <span class="val">${Math.round(got)} g <span class="off">${close?'on target':(d>0?'+':'')+d+' g'}</span></span>`;}).join('');
   const ing=r.items.map((it,i)=>r.grams[i]>0?`<li class="ing" data-card="${k}" data-idx="${i}">
       <div class="swipe-bg" aria-hidden="true"><span class="sw">Swap</span><span class="rm">Remove</span></div>
-      <div class="row"><span class="nm">${ING[it.id].n}</span><span class="amt">${amount(it.id,r.grams[i]).full}</span>
-      <span class="acts"><button type="button" class="ib" data-act="swap" aria-label="Swap ${ING[it.id].n} for something similar">⇄</button><button type="button" class="ib" data-act="remove" aria-label="Remove ${ING[it.id].n}">✕</button></span></div></li>`:'').join('');
+      <div class="row"><span class="nm">${ING[it.id].n}</span><button type="button" class="amt amtbtn" data-act="qty" aria-expanded="${cd.open===it.slot+':'+it.id}" aria-label="Change amount of ${ING[it.id].n}, now ${amount(it.id,r.grams[i]).full}">${amount(it.id,r.grams[i]).full}${cd.locks.has(it.slot+':'+it.id)?' •':''}</button>
+      <span class="acts"><button type="button" class="ib" data-act="swap" aria-label="Swap ${ING[it.id].n} for something similar">⇄</button><button type="button" class="ib" data-act="remove" aria-label="Remove ${ING[it.id].n}">✕</button></span></div>${cd.open===it.slot+':'+it.id?qtyRow(it,r.grams[i]):''}</li>`:'').join('');
   const steps=state.simple?'':r.tp.steps.map(f=>{h.miss=false;const s=f(h);return h.miss?null:s;}).filter(Boolean).map(s=>`<li>${s}</li>`).join('');
   const edited=cd.cur!==cd.base;
   const kinds=r.tp.types.filter(k=>k!=='eggrice').map(k=>TYPE_LABEL[k]).join(' or ');
@@ -1050,7 +1056,7 @@ function card(cd,k,t){
     <p class="kind">${kinds}, about ${kcal(P,C,F,FB)} kcal</p>
     <div class="fit" role="img" aria-label="${MK.map((m,i)=>`${MNAME[m]} ${Math.round(r.tot[i])} of ${t[m]} grams`).join(', ')}">${rows}</div>
     <div class="ing-head"><h4>Ingredients</h4>${edited?`<button type="button" class="linkbtn" data-act="reset" data-card="${k}">Undo changes</button>`:''}</div>
-    <p class="hint">${cd.msg||'Swipe an ingredient left to remove it, right to swap it.'}</p>
+    <p class="hint">${cd.msg||'Swipe an ingredient left to remove it, right to swap it. Tap an amount to change it.'}${cd.dirty?` <button type="button" class="linkbtn" data-act="rebal" data-card="${k}">Rebalance the rest</button>`:''}</p>
     <ul>${ing}</ul>${state.simple?`<h4>How</h4><p class="how">${r.tp.quick(h)}</p>`:`<h4>Steps</h4><ol>${steps}</ol>`}</article>`;
 }
 /* ---------- Swipe to remove or swap ---------- */
@@ -1060,10 +1066,39 @@ const keep=(r,skip)=>r.items.map((x,j)=>({...x,g:r.grams[j],j})).filter(x=>x.g>0
 function shortNote(r){const t=MK.map(m=>state.t[m]);
   const off=MK.map((m,i)=>({m,d:r.tot[i]-t[i],tol:Math.max(3,0.15*t[i])})).filter(x=>Math.abs(x.d)>x.tol);
   if(!off.length)return '';const s=joinAnd(off.map(x=>MNAME[x.m].toLowerCase()));return ` ${s[0].toUpperCase()+s.slice(1)} ${off.length>1?'are':'is'} now off target.`;}
+/* ---------- Change an amount ---------- */
+// Caps come from each recipe's own sensible range; fixed seasonings can go to double.
+const capOf=it=>{const c=it.lo===it.hi?Math.round(it.hi*2):it.hi,u=ING[it.id].u;return u?Math.max(u[0],Math.floor(c/u[0])*u[0]):c;};
+const stepOf=it=>{const I=ING[it.id];if(I.u)return I.u[0];if(I.liq)return 25;const c=capOf(it);return c<=20?1:c<=50?5:c<=150?10:25;};
+function qtyRow(it,g){const I=ING[it.id],cap=capOf(it),st=stepOf(it);
+  return `<div class="qty"><button type="button" class="qb" data-act="less" aria-label="Less ${I.n}"${g<=(I.u?I.u[0]:Math.max(st,it.lo||0))?' disabled':''}>−</button>
+    <span class="qv">${amount(it.id,g).full}</span>
+    <button type="button" class="qb" data-act="more" aria-label="More ${I.n}"${g>=cap?' disabled':''}>+</button>
+    <span class="qcap">max ${amount(it.id,cap).full.replace(/ \(.*$/,'')}</span></div>`;}
+function lockApply(items,cd){return items.map(x=>{const g=cd.locks.get(x.slot+':'+x.id);return g==null?x:{...x,lo:g,hi:g};});}
+function bump(k,i,dir){
+  const cd=cards[k],r=cd.cur,it=r.items[i],I=ING[it.id],st=stepOf(it),cap=capOf(it);
+  const g0=r.grams[i],floor=I.u?I.u[0]:Math.max(st,it.lo||0);
+  let g=Math.min(cap,Math.max(floor,g0+dir*st));
+  if(dir>0&&g0>=cap){cd.msg=`That's the most ${I.s} this recipe can take.`;redrawCard(k);return;}
+  if(dir<0&&g0<=floor){cd.msg=`That's the least that still makes sense. Swipe left to drop the ${I.s} entirely.`;redrawCard(k);return;}
+  const grams=r.grams.slice();grams[i]=g;
+  const tot=totals(r.items,grams),t=MK.map(m=>state.t[m]);
+  cd.cur={tp:r.tp,items:r.items,grams,tot,err:score(tot,t)};
+  cd.locks.set(it.slot+':'+it.id,g);cd.dirty=true;
+  cd.msg=`Set ${amount(it.id,g).full.replace(/ \(.*$/,'')} of ${I.s}. The bars show your new totals.${shortNote(cd.cur)}`;
+  redrawCard(k);
+}
+function rebalance(k){
+  const cd=cards[k],r=cd.cur,t=MK.map(m=>state.t[m]);
+  cd.cur={tp:r.tp,...fit(lockApply(keep(r,-1),cd),t)};cd.dirty=false;
+  cd.msg=`Rebalanced around your changes (marked •).${shortNote(cd.cur)}`;
+  redrawCard(k);
+}
 function removeItem(k,i){
   const cd=cards[k],r=cd.cur,it=r.items[i];
   if(r.items.filter((x,j)=>j!==i&&r.grams[j]>0).length===0){cd.msg="That's the last ingredient, so it has to stay.";redrawCard(k);return;}
-  const items=keep(r,i);
+  const items=lockApply(keep(r,i),cd);cd.locks.delete(it.slot+':'+it.id);cd.dirty=false;
   cd.removed.add(it.slot);
   cd.cur={tp:r.tp,...fit(items,MK.map(m=>state.t[m]))};
   cd.msg=`Removed the ${ING[it.id].s} and rebalanced the rest.${shortNote(cd.cur)}`;
@@ -1078,7 +1113,8 @@ function swapItem(k,i){
   let fresh=opts.filter(o=>!tried.has(o.id));
   if(!fresh.length){tried.clear();tried.add(it.id);fresh=opts;}
   // Keep a lower bound when the original was required, so the swap actually shows up in the recipe.
-  const base=keep(r,-1),pos=base.findIndex(x=>x.slot===it.slot&&x.id===it.id);
+  cd.locks.delete(it.slot+':'+it.id);cd.dirty=false;
+  const base=lockApply(keep(r,-1),cd),pos=base.findIndex(x=>x.slot===it.slot&&x.id===it.id);
   const tries=fresh.map(o=>{const items=base.map((x,j)=>j===pos?{...o,lo:o.lo>0?o.lo:Math.min(o.hi,5)}:{...x});return fit(items,t);})
     .sort((a,b)=>a.err-b.err);
   const best=tries[0],nu=best.items[pos];tried.add(nu.id);
@@ -1088,11 +1124,15 @@ function swapItem(k,i){
 }
 const resultsEl=document.getElementById('results');
 resultsEl.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;
-  if(b.dataset.act==='reset'){const k=+b.dataset.card,cd=cards[k];cd.cur=cd.base;cd.removed.clear();cd.tried={};cd.msg='';redrawCard(k);return;}
+  if(b.dataset.act==='reset'){const k=+b.dataset.card,cd=cards[k];cd.cur=cd.base;cd.removed.clear();cd.tried={};cd.msg='';cd.locks.clear();cd.open=null;cd.dirty=false;redrawCard(k);return;}
+  if(b.dataset.act==='rebal'){rebalance(+b.dataset.card);return;}
   const li=b.closest('.ing');if(!li)return;const k=+li.dataset.card,i=+li.dataset.idx;
-  b.dataset.act==='remove'?removeItem(k,i):swapItem(k,i);});
+  const act=b.dataset.act,it=cards[k].cur.items[i];
+  if(act==='qty'){const key=it.slot+':'+it.id;cards[k].open=cards[k].open===key?null:key;redrawCard(k);return;}
+  if(act==='more'||act==='less'){bump(k,i,act==='more'?1:-1);return;}
+  act==='remove'?removeItem(k,i):swapItem(k,i);});
 let drag=null;
-resultsEl.addEventListener('pointerdown',e=>{const li=e.target.closest('.ing');if(!li||e.target.closest('button'))return;
+resultsEl.addEventListener('pointerdown',e=>{const li=e.target.closest('.ing');if(!li||e.target.closest('button')||e.target.closest('.qty'))return;
   drag={li,row:li.querySelector('.row'),x:e.clientX,y:e.clientY,dx:0,on:false,id:e.pointerId};});
 resultsEl.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;
   const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
