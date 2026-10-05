@@ -84,6 +84,8 @@ section{margin-bottom:36px}
 .recipe li .amt{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
 .recipe ol{padding-left:1.3em;margin:0 0 10px}
 .recipe ol li{display:list-item;border:0;padding:3px 0}
+.upd-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--panel);border-left:4px solid var(--fb);padding:12px 16px;margin:0 0 28px}
+.upd-banner[hidden]{display:none}
 .empty{background:var(--panel);padding:18px;border-left:4px solid var(--line)}
 
 /* Pantry */
@@ -139,6 +141,7 @@ details[open] summary::after{content:"Hide"}
 <main>
   <h1>Snack Scope</h1>
   <p class="lede">Dial in the macros and fiber you want from this meal. Recipes rebuild from your pantry as you go, with amounts solved to hit the numbers.</p>
+  <div class="upd-banner" id="updBanner" role="status" hidden><span>A new version of Snack Scope is ready.</span><button class="chip" id="updBannerBtn" type="button">Update</button></div>
 
   <section aria-labelledby="h-targets">
     <h2 id="h-targets">Targets</h2>
@@ -188,6 +191,12 @@ details[open] summary::after{content:"Hide"}
           <button class="linkbtn" id="eReset" type="button">Use default values</button><span class="note" id="eMsg" role="status"></span></div>
       </div>
     </details>
+  </section>
+
+  <section aria-labelledby="h-upd">
+    <h2 id="h-upd">Updates</h2>
+    <p class="note" style="margin:0 0 10px">Version <span id="updVersion"></span>. <span id="updStatus" role="status"></span></p>
+    <button class="chip" id="updBtn" type="button">Check for updates</button>
   </section>
 </main>
 
@@ -1269,6 +1278,79 @@ const simpleBtn=document.getElementById('simple');
 simpleBtn.setAttribute('aria-checked',!!state.simple);
 simpleBtn.addEventListener('click',()=>{state.simple=!state.simple;simpleBtn.setAttribute('aria-checked',state.simple);changed(true);});
 markTypes();drawPantry();showKcal();compute();render();
+</script>
+<script>
+/* ---------- app updates ----------
+   APP_VERSION must match the version string in sw.js. Bump both on every release:
+   the Updates section compares this page's version with the live sw.js. Updating
+   clears the offline cache and reloads; saved data (localStorage, IndexedDB) is
+   not touched. */
+const APP_VERSION = 'snack-scope-v9';
+const AppUpdate = (() => {
+  const el = id => document.getElementById(id);
+  let latest = null, lastCheck = 0;
+  // the version on the server, or null when it can't be reached
+  async function fetchLatest() {
+    try {
+      const r = await fetch('./sw.js?check=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return null;
+      const m = (await r.text()).match(/(?:VERSION|CACHE)\s*=\s*["']([^"']+)["']/);
+      return m ? m[1] : null;
+    } catch (e) { return null; }
+  }
+  // an update already applied this session that still isn't showing means the server
+  // is mid-deploy; don't offer it again in a loop
+  const tried = () => { try { return sessionStorage.getItem('updTried') === latest; } catch (e) { return false; } };
+  const newer = () => !!latest && latest !== APP_VERSION;
+  const ready = () => newer() && !tried();
+  function paint(busy, msg) {
+    const st = el('updStatus'), btn = el('updBtn'), ban = el('updBanner');
+    if (st && msg != null) st.textContent = msg;
+    if (btn) {
+      btn.disabled = busy;
+      btn.textContent = busy ? 'Checking…' : ready() ? 'Update now' : newer() ? 'Try again' : 'Check for updates';
+    }
+    if (ban) ban.hidden = !ready();
+  }
+  async function check(quiet) {
+    if (!quiet) paint(true, 'Checking…');
+    lastCheck = Date.now();
+    const v = await fetchLatest();
+    if (v) latest = v;
+    if (ready()) paint(false, 'A new version is ready. Your saved data stays put.');
+    else if (newer()) paint(false, 'The new version is still rolling out. Try again in a few minutes.');
+    else if (quiet) paint(false, null);
+    else paint(false, v ? 'You have the latest version.' : 'Couldn’t reach the server. Check your connection and try again.');
+  }
+  async function apply() {
+    paint(true, 'Updating…');
+    // never throw the offline copy away without a way to fetch the new one
+    const v = await fetchLatest();
+    if (!v) { paint(false, 'You’re offline, so nothing was changed. Try again with signal.'); return; }
+    latest = v;
+    try {
+      if ('caches' in window) for (const k of await caches.keys()) await caches.delete(k);
+      if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) { try { await r.unregister(); } catch (e) {} }
+    } catch (e) {}
+    try { sessionStorage.setItem('updTried', latest); } catch (e) {}
+    // a query the browser hasn't seen skips its HTTP cache too
+    location.replace(location.pathname + '?u=' + Date.now());
+  }
+  function init() {
+    const just = /[?&]u=\d/.test(location.search);
+    if (just) history.replaceState(null, '', location.pathname + location.hash);
+    const v = el('updVersion'); if (v) v.textContent = APP_VERSION;
+    if (el('updBtn')) el('updBtn').onclick = () => newer() ? apply() : check(false);
+    if (el('updBannerBtn')) el('updBannerBtn').onclick = apply;
+    paint(false, just ? 'Updated. You’re on the latest version.' : '');
+    check(true);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastCheck > 30 * 60e3) check(true);
+    });
+  }
+  return { init };
+})();
+AppUpdate.init();
 </script>
 <script>
 if ('serviceWorker' in navigator) {
